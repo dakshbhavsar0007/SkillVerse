@@ -8,20 +8,27 @@ class ChatManager:
     def __init__(self):
         self.model = None
         self._setup_done = False
+        self._init_error = None
 
     def setup(self):
         api_key = current_app.config.get("GROQ_API_KEY") or os.environ.get("GROQ_API_KEY")
         
         if not api_key:
-            logging.error("AskVera: GROQ_API_KEY missing.")
+            self._init_error = "GROQ_API_KEY missing from config and environment"
+            logging.error(f"AskVera: {self._init_error}")
             return
 
+        logging.info(f"AskVera: Attempting init with key starting '{api_key[:8]}...'")
+        
         try:
             self.model = Groq(api_key=api_key)
             self._setup_done = True
+            self._init_error = None
             logging.info("AskVera: Groq AI initialized successfully.")
         except Exception as e:
+            self._init_error = str(e)
             logging.error(f"AskVera init failed: {e}")
+            traceback.print_exc()
 
     def get_response(self, user_message, context, user_identity, user_role="guest"):
         if not current_app.config.get("ENABLE_ASKVERA", False):
@@ -31,7 +38,9 @@ class ChatManager:
             self.setup()
         
         if not self.model: 
-            return {"error": "AI service unavailable (Init failed).", "fallback": True}
+            err_detail = self._init_error or "Unknown error"
+            logging.error(f"AskVera: Model still None after setup. Error: {err_detail}")
+            return {"error": f"AI service unavailable ({err_detail}).", "fallback": True}
 
         try:
             system_prompt = (
