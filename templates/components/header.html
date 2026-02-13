@@ -215,8 +215,8 @@
                                 {% if current_user.user_type == 'provider' or current_user.user_type == 'admin' %}
                                 <li><a class="dropdown-item" href="{{ url_for('availability.manage') }}">Manage
                                         Availability</a></li>
-                                {% endif %}
                                 <li><a class="dropdown-item" href="{{ url_for('service.create') }}">Sell Skills</a></li>
+                                {% endif %}
                                 <li>
                                     <hr class="dropdown-divider">
                                 </li>

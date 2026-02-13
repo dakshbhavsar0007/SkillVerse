@@ -343,7 +343,10 @@ def register():
             flash(error, 'danger')
             return render_template('auth/register.html')
     
-    return render_template('auth/register.html')
+    from managers import CategoryManager
+    category_manager = CategoryManager()
+    categories = category_manager.get_all_categories()
+    return render_template('auth/register.html', categories=categories)
 
 
 
