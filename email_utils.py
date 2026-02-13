@@ -60,11 +60,15 @@ def send_email(subject, recipient, template, **kwargs):
             try:
                 mail.send(msg)
             except Exception as e:
-                app.logger.error(f"Failed to send email: {str(e)}")
+                server = app.config.get('MAIL_SERVER')
+                port = app.config.get('MAIL_PORT')
+                app.logger.error(f"Failed to send email to {recipient} via {server}:{port}. Error: {str(e)}")
         
         return True
     except Exception as e:
-        current_app.logger.error(f"Error creating email: {str(e)}")
+        server = current_app.config.get('MAIL_SERVER')
+        port = current_app.config.get('MAIL_PORT')
+        current_app.logger.error(f"Error creating/sending email via {server}:{port}: {str(e)}")
         return False
 
 
