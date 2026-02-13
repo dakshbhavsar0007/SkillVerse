@@ -346,7 +346,16 @@ class Service(db.Model):
         Returns:
             float: Average rating (0.0 to 5.0)
         """
-        reviews = self.reviews.all()
+        from sqlalchemy.orm import object_session
+        session = object_session(self)
+        
+        if session:
+            reviews = self.reviews.all()
+        else:
+            # Fallback for detached instances (cached)
+            from models import Review
+            reviews = Review.query.filter_by(service_id=self.id).all()
+            
         if not reviews:
             return 0.0
         
@@ -360,7 +369,13 @@ class Service(db.Model):
         Returns:
             int: Review count
         """
-        return self.reviews.count()
+        from sqlalchemy.orm import object_session
+        session = object_session(self)
+        if session:
+            return self.reviews.count()
+        else:
+            from models import Review
+            return Review.query.filter_by(service_id=self.id).count()
     
     def get_tags_list(self):
         """
