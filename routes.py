@@ -365,7 +365,9 @@ def google_callback():
     
     try:
         token = oauth.google.authorize_access_token()
-        user_info = oauth.google.parse_id_token(token, nonce=None)
+        # Use userinfo endpoint instead of parse_id_token for reliability
+        # (parse_id_token requires server metadata which triggers SSL bug on Render)
+        user_info = oauth.google.userinfo()
         
         # Check if user exists
         user = User.query.filter_by(email=user_info['email']).first()

@@ -69,11 +69,17 @@ def create_app(config_name='default'):
     app.config['COMPRESS_MIN_SIZE'] = 500
 
     # Register Google OAuth
+    # NOTE: We hardcode the endpoints instead of using server_metadata_url
+    # because Render's Python 3.11.11 has a broken ssl.py that causes
+    # RecursionError when making HTTPS requests to fetch metadata.
     oauth.register(
         name='google',
         client_id=app.config['GOOGLE_CLIENT_ID'],
         client_secret=app.config['GOOGLE_CLIENT_SECRET'],
-        server_metadata_url='https://accounts.google.com/.well-known/openid-configuration',
+        authorize_url='https://accounts.google.com/o/oauth2/v2/auth',
+        access_token_url='https://oauth2.googleapis.com/token',
+        userinfo_endpoint='https://openidconnect.googleapis.com/v1/userinfo',
+        jwks_uri='https://www.googleapis.com/oauth2/v3/certs',
         client_kwargs={'scope': 'openid email profile'},
     )
     
