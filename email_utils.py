@@ -14,7 +14,7 @@ mail = Mail()
 
 def send_async_email(app, msg):
     """
-    Send email asynchronously in a separate thread
+    Send email in a separate thread (fallback for development)
     
     Args:
         app: Flask application instance
@@ -24,7 +24,7 @@ def send_async_email(app, msg):
         try:
             mail.send(msg)
         except Exception as e:
-            current_app.logger.error(f"Failed to send email: {str(e)}")
+            app.logger.error(f"Failed to send email: {str(e)}")
 
 
 def send_email(subject, recipient, template, **kwargs):
@@ -52,8 +52,15 @@ def send_email(subject, recipient, template, **kwargs):
         # Render HTML template
         msg.html = render_template(f'emails/{template}.html', **kwargs)
         
-        # Send asynchronously to avoid blocking
-        Thread(target=send_async_email, args=(app, msg)).start()
+        # On production (gunicorn + gevent), send synchronously for reliability
+        # On development, use threading
+        if app.config.get('DEBUG'):
+            Thread(target=send_async_email, args=(app, msg)).start()
+        else:
+            try:
+                mail.send(msg)
+            except Exception as e:
+                app.logger.error(f"Failed to send email: {str(e)}")
         
         return True
     except Exception as e:

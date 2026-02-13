@@ -50,6 +50,10 @@ def create_app(config_name='default'):
     config_class = get_config(config_name)
     app.config.from_object(config_class)
     
+    # Fix for Render reverse proxy - ensures correct https:// URLs for OAuth
+    from werkzeug.middleware.proxy_fix import ProxyFix
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+    
     # Initialize extensions
     db.init_app(app)
     login_manager.init_app(app)

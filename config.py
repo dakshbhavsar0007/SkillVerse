@@ -106,6 +106,9 @@ class ProductionConfig(Config):
     # Production should use a strong secret key from environment
     SECRET_KEY = os.environ.get('SECRET_KEY')
     
+    # Ensure url_for generates https:// URLs behind Render's reverse proxy
+    PREFERRED_URL_SCHEME = 'https'
+    
     # Production database - Render provides postgres://, SQLAlchemy needs postgresql://
     _db_url = os.environ.get('DATABASE_URL')
     if _db_url and _db_url.startswith('postgres://'):
