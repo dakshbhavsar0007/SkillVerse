@@ -8,10 +8,18 @@ Author: SkillVerse Team
 Purpose: Initialize and configure Flask application
 """
 
+import os
+# EXTREMELY IMPORTANT: Monkey patch BEFORE any other imports to avoid RecursionError in SSL
+if os.environ.get('GEVENT_PATCH') != 'false':
+    try:
+        import gevent.monkey
+        gevent.monkey.patch_all()
+    except ImportError:
+        pass
+
 from flask import Flask, render_template
 from flask_login import LoginManager
 from flask_socketio import SocketIO
-import os
 from dotenv import load_dotenv
 
 # Load environment variables first
