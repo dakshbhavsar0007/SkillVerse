@@ -19,6 +19,7 @@ psycopg2-binary>=2.9.9
 # Security & Authentication
 Werkzeug==3.0.1
 bcrypt==4.1.2
+PyJWT>=2.8.0
 itsdangerous==2.1.2 # Added for security, often a dependency of Flask/Werkzeug
 
 # Email validation
