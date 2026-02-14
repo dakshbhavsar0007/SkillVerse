@@ -54,15 +54,9 @@ def send_email(subject, recipient, template, **kwargs):
         
         # On production (gunicorn + gevent), send synchronously for reliability
         # On development, use threading
-        if app.config.get('DEBUG'):
-            Thread(target=send_async_email, args=(app, msg)).start()
-        else:
-            try:
-                mail.send(msg)
-            except Exception as e:
-                server = app.config.get('MAIL_SERVER')
-                port = app.config.get('MAIL_PORT')
-                app.logger.error(f"Failed to send email to {recipient} via {server}:{port}. Error: {str(e)}")
+        # Send email asynchronously in a background thread to prevent blocking
+        # This resolves the issue of long loading times (60s+) during registration
+        Thread(target=send_async_email, args=(app, msg)).start()
         
         return True
     except Exception as e:
