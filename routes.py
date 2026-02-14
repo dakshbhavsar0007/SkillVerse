@@ -354,6 +354,14 @@ def register():
 def google_login():
     """Initiate Google OAuth login"""
     from extensions import oauth
+    from flask import session
+    
+    # Store requested user type in session (if provided)
+    # This allows a user to register as a 'provider' via Google Login
+    user_type = request.args.get('role')
+    if user_type in ['client', 'provider']:
+        session['google_registration_role'] = user_type
+    
     redirect_uri = url_for('auth.google_callback', _external=True)
     return oauth.google.authorize_redirect(redirect_uri)
 
@@ -393,7 +401,8 @@ def google_callback():
                 username=username,
                 email=user_info['email'],
                 full_name=user_info.get('name', username),
-                user_type='client',  # Default to client
+                # Check for stored role in session (default to client)
+                user_type=session.pop('google_registration_role', 'client'),
                 password_hash=generate_password_hash(os.urandom(24).hex()),
                 is_active=True,
                 is_verified=True  # Google verified
