@@ -220,3 +220,24 @@ def send_booking_rejection_email(booking):
         service_title=service_title,
         link=link
     )
+
+
+def send_password_reset_email(user, token):
+    """
+    Send password reset email to user
+    
+    Args:
+        user: User object
+        token: Reset token
+    """
+    from flask import url_for
+    
+    link = url_for('auth.reset_password_token', token=token, _external=True)
+    
+    return send_email(
+        subject='Reset Your Password - SkillVerse',
+        recipient=user.email,
+        template='reset_password',
+        user=user,
+        link=link
+    )

@@ -429,6 +429,53 @@ def google_callback():
         return redirect(url_for('auth.login'))
 
 
+@auth_bp.route('/reset_password', methods=['GET', 'POST'])
+def reset_password_request():
+    """Handle reset password request"""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+    
+    if request.method == 'POST':
+        email = request.form.get('email')
+        user = User.query.filter_by(email=email).first()
+        if user:
+            token = user.get_reset_token()
+            from email_utils import send_password_reset_email
+            send_password_reset_email(user, token)
+        
+        # Flash message for both cases (security: don't reveal if email exists)
+        flash('Check your email for the instructions to reset your password', 'info')
+        return redirect(url_for('auth.login'))
+        
+    return render_template('auth/reset_password_request.html')
+
+
+@auth_bp.route('/reset_password/<token>', methods=['GET', 'POST'])
+def reset_password_token(token):
+    """Handle password reset with token"""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.index'))
+        
+    user = User.verify_reset_token(token)
+    if not user:
+        flash('That is an invalid or expired token', 'warning')
+        return redirect(url_for('auth.reset_password_request'))
+        
+    if request.method == 'POST':
+        password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
+        
+        if password != confirm_password:
+            flash('Passwords must match', 'danger')
+            return render_template('auth/reset_password.html', token=token) # Pass token back if validation fails? URL usually sufficient
+            
+        user.set_password(password)
+        db.session.commit()
+        flash('Your password has been updated! You are now able to log in', 'success')
+        return redirect(url_for('auth.login'))
+        
+    return render_template('auth/reset_password.html', token=token)
+
 @auth_bp.route('/logout')
 @login_required
 def logout():

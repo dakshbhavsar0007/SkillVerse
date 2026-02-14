@@ -118,7 +118,8 @@
                         Remember Me
                     </label>
                 </div>
-                <a href="#" class="text-muted text-decoration-none small">Forgot Password?</a>
+                <a href="{{ url_for('auth.reset_password_request') }}"
+                    class="text-muted text-decoration-none small">Forgot Password?</a>
             </div>
 
             <!-- Submit Button with Enhanced Hover Effects -->

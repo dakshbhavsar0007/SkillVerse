@@ -100,6 +100,36 @@ class User(UserMixin, db.Model):
     notifications = db.relationship('Notification', backref='user', lazy='dynamic',
                                    cascade='all, delete-orphan')
     
+    def get_reset_token(self, expires_sec=1800):
+        """
+        Generate password reset JWT token
+        expires_sec: expiration time in seconds (default 30 mins)
+        """
+        import jwt
+        import time
+        from flask import current_app
+        
+        payload = {
+            'user_id': self.id,
+            'exp': time.time() + expires_sec
+        }
+        return jwt.encode(payload, current_app.config['SECRET_KEY'], algorithm='HS256')
+
+    @staticmethod
+    def verify_reset_token(token):
+        """
+        Verify password reset token and return User
+        """
+        import jwt
+        from flask import current_app
+        
+        try:
+            payload = jwt.decode(token, current_app.config['SECRET_KEY'], algorithms=['HS256'])
+            user_id = payload['user_id']
+            return User.query.get(user_id)
+        except:
+            return None
+    
     def set_password(self, password):
         """
         Hash and set user password
