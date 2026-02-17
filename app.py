@@ -28,9 +28,8 @@ load_dotenv()
 from config import get_config
 from models import db, User
 
-# Initialize Flask-Login and Flask-Mail
+# Initialize Flask-Login
 from extensions import login_manager, oauth, socketio
-from email_utils import mail
 from flask_compress import Compress
 
 # Initialize Compress
@@ -67,7 +66,6 @@ def create_app(config_name='default'):
     login_manager.init_app(app)
     socketio.init_app(app)
     oauth.init_app(app)
-    mail.init_app(app)
     compress.init_app(app)
 
     # Performance: Cache Static Files for 1 Year

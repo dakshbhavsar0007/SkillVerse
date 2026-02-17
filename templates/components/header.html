@@ -212,7 +212,7 @@
                                 <li><a class="dropdown-item" href="{{ url_for('user.transactions') }}">
                                         <i class="bi bi-clock-history me-2 text-info"></i>Transactions</a>
                                 </li>
-                                {% if current_user.user_type == 'provider' or current_user.user_type == 'admin' %}
+                                {% if current_user.user_type == 'provider' %}
                                 <li><a class="dropdown-item" href="{{ url_for('availability.manage') }}">Manage
                                         Availability</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('service.create') }}">Sell Skills</a></li>
