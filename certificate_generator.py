@@ -61,7 +61,11 @@ def _draw_centered_text(draw, text, y, font, color):
         bbox = draw.textbbox((0, 0), text, font=font)
         text_width = bbox[2] - bbox[0]
     except AttributeError:
-        text_width = draw.textlength(text, font=font)
+        try:
+            text_width = draw.textlength(text, font=font)
+        except AttributeError:
+            # Fallback for older Pillow versions
+            text_width, _ = draw.textsize(text, font=font)
     x = (2480 - text_width) // 2
     draw.text((x, y), text, font=font, fill=color)
 

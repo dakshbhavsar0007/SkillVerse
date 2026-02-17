@@ -1539,8 +1539,7 @@ def complete_order(order_id):
 
     except Exception as e:
         print(f"[Certificate] Generation failed: {e}")
-        flash('Order marked complete, but certificate generation failed. '
-              'Please contact support.', 'warning')
+        flash(f'Order marked complete, but certificate generation failed: {str(e)}', 'warning')
 
     return redirect(url_for('user.order_detail', order_id=order_id))
 
