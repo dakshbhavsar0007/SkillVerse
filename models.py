@@ -69,6 +69,9 @@ class User(UserMixin, db.Model):
     is_active = db.Column(db.Boolean, default=True)
     is_verified = db.Column(db.Boolean, default=False)
 
+    # Wallet balance - stored in DB so it persists across redeploys
+    wallet_balance = db.Column(db.Float, default=0.0, nullable=False)
+
 
     
     # Timestamps
@@ -231,6 +234,57 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         """String representation of User object"""
         return f'<User {self.username}>'
+
+
+class Transaction(db.Model):
+    """
+    Transaction Model - Stores all wallet transactions persistently in PostgreSQL.
+
+    Replaces transactions.txt so history survives Render redeploys.
+
+    DBMS Concepts:
+    - Primary Key: id (auto-increment)
+    - Foreign Key: user_id -> users.id
+    - Index on user_id for fast per-user queries
+    - Index on timestamp for date-range queries
+    """
+
+    __tablename__ = 'transactions'
+
+    id          = db.Column(db.Integer, primary_key=True)
+    txn_id      = db.Column(db.String(50), nullable=False, index=True)   # e.g. TXN20260204215100110
+    user_id     = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    username    = db.Column(db.String(80))
+    amount      = db.Column(db.Float, nullable=False)
+    method      = db.Column(db.String(20))          # card / wallet / upi
+    status      = db.Column(db.String(20))          # success / failed
+    txn_type    = db.Column(db.String(10))          # debit / credit / None for recharge
+    description = db.Column(db.Text)
+    new_balance = db.Column(db.Float)               # balance after this transaction
+    timestamp   = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+
+    # Relationship
+    user = db.relationship('User', backref=db.backref('transactions', lazy='dynamic'))
+
+    def to_dict(self):
+        """Return a plain dict matching the old transactions.txt JSON format."""
+        return {
+            'id':          self.txn_id,
+            'user_id':     str(self.user_id),
+            'username':    self.username or f'User #{self.user_id}',
+            'amount':      self.amount,
+            'method':      self.method,
+            'status':      self.status,
+            'type':        self.txn_type,
+            'description': self.description,
+            'date':        self.timestamp.strftime('%Y-%m-%d') if self.timestamp else '',
+            'time':        self.timestamp.strftime('%H:%M:%S') if self.timestamp else '',
+            'timestamp':   self.timestamp.isoformat() if self.timestamp else '',
+            'new_balance': self.new_balance,
+        }
+
+    def __repr__(self):
+        return f'<Transaction {self.txn_id} user={self.user_id} ₹{self.amount}>'
 
 
 class Category(db.Model):

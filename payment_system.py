@@ -217,121 +217,110 @@ class PaymentGateway:
     
     def save_transaction(self, txn_data):
         """
-        Save transaction to text file.
-        
-        File Handling (Unit-6):
-        - Opens file in append mode ('a')
-        - Writes JSON data with newline
-        
+        Save transaction to PostgreSQL database.
+
+        Falls back to transactions.txt if DB is unavailable (e.g. unit tests).
+
         Args:
             txn_data: Dictionary containing transaction details
-            
-        Raises:
-            CustomException: If file write fails
         """
         try:
-            # File Handling: Opening file in append mode
-            with open(self.transactions_file, 'a', encoding='utf-8') as f:
-                # Convert dict to JSON string and write
-                f.write(json.dumps(txn_data) + '\n')
-        except IOError as e:
-            raise CustomException(f"Error saving transaction: {e}")
-        except json.JSONEncodeError as e:
-            raise CustomException(f"Error encoding transaction data: {e}")
+            from models import db, Transaction
+            from datetime import datetime as _dt
+
+            ts_raw = txn_data.get('timestamp')
+            if ts_raw:
+                try:
+                    ts = _dt.fromisoformat(ts_raw)
+                except ValueError:
+                    ts = _dt.utcnow()
+            else:
+                ts = _dt.utcnow()
+
+            txn = Transaction(
+                txn_id      = txn_data.get('id', self.generate_transaction_id()),
+                user_id     = int(txn_data.get('user_id', 0)),
+                username    = txn_data.get('username'),
+                amount      = float(txn_data.get('amount', 0)),
+                method      = txn_data.get('method'),
+                status      = txn_data.get('status'),
+                txn_type    = txn_data.get('type'),
+                description = txn_data.get('description'),
+                new_balance = txn_data.get('new_balance'),
+                timestamp   = ts,
+            )
+            db.session.add(txn)
+            db.session.commit()
+
+        except Exception:
+            # Fallback: write to txt file so nothing is lost
+            try:
+                with open(self.transactions_file, 'a', encoding='utf-8') as f:
+                    f.write(json.dumps(txn_data) + '\n')
+            except IOError as e:
+                raise CustomException(f"Error saving transaction: {e}")
     
     def get_transaction(self, txn_id, user_id=None):
         """
-        Retrieve a specific transaction by ID.
-        
-        File Handling (Unit-6):
-        - Opens file in read mode ('r')
-        - Reads line by line
-        
+        Retrieve a specific transaction by ID from PostgreSQL.
+
         Args:
             txn_id: Transaction ID to search for
-            user_id: Optional User ID to filter by (for shared IDs)
-            
+            user_id: Optional User ID to filter by
+
         Returns:
             dict: Transaction data if found
-            
+
         Raises:
             TransactionNotFoundException: If transaction not found
         """
         try:
-            with open(self.transactions_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        txn = json.loads(line)
-                        if txn.get('id') == txn_id:
-                            # If user_id is provided, ensure it matches
-                            if user_id and str(txn.get('user_id')) != str(user_id):
-                                continue
-                            return txn
+            from models import Transaction
+            query = Transaction.query.filter_by(txn_id=txn_id)
+            if user_id:
+                query = query.filter_by(user_id=int(user_id))
+            txn = query.first()
+            if txn:
+                return txn.to_dict()
             raise TransactionNotFoundException(txn_id)
-        except IOError as e:
-            raise CustomException(f"Error reading transactions: {e}")
-        except json.JSONDecodeError:
-            pass  # Skip malformed lines
+        except TransactionNotFoundException:
+            raise
+        except Exception as e:
+            raise CustomException(f"Error reading transaction: {e}")
     
     def get_user_transactions(self, user_id):
         """
-        Get all transactions for a specific user.
-        
-        File Handling (Unit-6):
-        - Reads entire file
-        - Filters by user_id
-        
+        Get all transactions for a specific user from PostgreSQL.
+
         Args:
             user_id: User ID to filter by
-            
+
         Returns:
-            list: List of transaction dictionaries
+            list: List of transaction dicts (newest first)
         """
-        transactions = []
         try:
-            if os.path.exists(self.transactions_file):
-                with open(self.transactions_file, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        line = line.strip()
-                        if line:
-                            try:
-                                txn = json.loads(line)
-                                if str(txn.get('user_id')) == str(user_id):
-                                    transactions.append(txn)
-                            except json.JSONDecodeError:
-                                continue  # Skip malformed lines
-        except IOError as e:
+            from models import Transaction
+            txns = (Transaction.query
+                    .filter_by(user_id=int(user_id))
+                    .order_by(Transaction.timestamp.desc())
+                    .all())
+            return [t.to_dict() for t in txns]
+        except Exception as e:
             raise CustomException(f"Error reading transactions: {e}")
-        
-        # Sort by timestamp (newest first)
-        transactions.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-        return transactions
     
     def get_all_transactions(self):
         """
-        Get all transactions from file.
-        
+        Get all transactions from PostgreSQL (newest first).
+
         Returns:
-            list: List of all transaction dictionaries
+            list: List of all transaction dicts
         """
-        transactions = []
         try:
-            if os.path.exists(self.transactions_file):
-                with open(self.transactions_file, 'r', encoding='utf-8') as f:
-                    for line in f:
-                        line = line.strip()
-                        if line:
-                            try:
-                                txn = json.loads(line)
-                                transactions.append(txn)
-                            except json.JSONDecodeError:
-                                continue
-        except IOError as e:
+            from models import Transaction
+            txns = Transaction.query.order_by(Transaction.timestamp.desc()).all()
+            return [t.to_dict() for t in txns]
+        except Exception as e:
             raise CustomException(f"Error reading transactions: {e}")
-        
-        transactions.sort(key=lambda x: x.get('timestamp', ''), reverse=True)
-        return transactions
 
 
 # ============================================================================
@@ -347,9 +336,10 @@ class WalletManager:
     - ENCAPSULATION: Private methods and attributes
     - METHODS: get_balance, add_money, deduct_money
     
-    File Handling (Unit-6):
-    - Stores wallet data in text file
-    - Each line represents a user's wallet
+    Storage (Updated):
+    - Balances are stored in the PostgreSQL database (User.wallet_balance)
+    - This ensures balances persist across Render redeploys
+    - Transactions are still logged to transactions.txt for history
     """
     
     def __init__(self, wallet_file='wallets.txt', payment_gateway=None):
@@ -357,136 +347,104 @@ class WalletManager:
         Initialize WalletManager.
         
         Args:
-            wallet_file: Path to wallet data file
+            wallet_file: Kept for backwards compatibility (no longer used for balances)
             payment_gateway: PaymentGateway instance for transactions
         """
-        # Check for persistent storage path (Render)
-        self.storage_path = '/var/data'
-        if os.path.exists(self.storage_path):
-            self.wallet_file = os.path.join(self.storage_path, wallet_file)
-        else:
-            self.wallet_file = wallet_file
-            
         # COMPOSITION: WalletManager HAS-A PaymentGateway
         self.payment_gateway = payment_gateway or PaymentGateway()
-        self.__ensure_file_exists()
-    
-    def __ensure_file_exists(self):
-        """Create wallet file if it doesn't exist."""
-        if not os.path.exists(self.wallet_file):
-            try:
-                with open(self.wallet_file, 'w', encoding='utf-8') as f:
-                    pass
-            except IOError as e:
-                raise CustomException(f"Error creating wallet file: {e}")
-    
-    def __read_all_wallets(self):
-        """
-        Read all wallet data from file.
-        
-        File Handling (Unit-6): Reading entire file
-        
-        Returns:
-            dict: Dictionary mapping user_id to wallet data
-        """
-        wallets = {}
+
+    # ------------------------------------------------------------------
+    # Private DB helpers
+    # ------------------------------------------------------------------
+
+    def __get_user(self, user_id):
+        """Fetch User object from DB. Returns None if not found."""
         try:
-            with open(self.wallet_file, 'r', encoding='utf-8') as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        try:
-                            wallet = json.loads(line)
-                            user_id = str(wallet.get('user_id'))
-                            wallets[user_id] = wallet
-                        except json.JSONDecodeError:
-                            continue
-        except IOError as e:
-            raise CustomException(f"Error reading wallets: {e}")
-        return wallets
-    
-    def __write_all_wallets(self, wallets):
+            from models import User
+            return User.query.get(int(user_id))
+        except Exception:
+            return None
+
+    def __save_balance(self, user, new_balance):
         """
-        Write all wallet data to file.
-        
-        File Handling (Unit-6): Writing to file (overwrite mode)
+        Persist updated balance to PostgreSQL.
         
         Args:
-            wallets: Dictionary of all wallet data
+            user: SQLAlchemy User object
+            new_balance: New balance value (float)
         """
         try:
-            with open(self.wallet_file, 'w', encoding='utf-8') as f:
-                for wallet in wallets.values():
-                    f.write(json.dumps(wallet) + '\n')
-        except IOError as e:
-            raise CustomException(f"Error writing wallets: {e}")
-    
+            from models import db
+            user.wallet_balance = float(new_balance)
+            db.session.commit()
+        except Exception as e:
+            from models import db
+            db.session.rollback()
+            raise CustomException(f"Error saving wallet balance: {e}")
+
+    # ------------------------------------------------------------------
+    # Public API (same interface as before - no other code needs changing)
+    # ------------------------------------------------------------------
+
     def get_balance(self, user_id):
         """
-        Get current wallet balance for a user.
+        Get current wallet balance for a user from the database.
         
         Args:
             user_id: User ID
             
         Returns:
-            float: Current balance (0 if wallet doesn't exist)
+            float: Current balance (0.0 if user not found)
         """
-        wallets = self.__read_all_wallets()
-        user_id = str(user_id)
-        
-        if user_id in wallets:
-            return float(wallets[user_id].get('balance', 0))
+        user = self.__get_user(user_id)
+        if user:
+            return float(user.wallet_balance or 0.0)
         return 0.0
-    
+
     def get_wallet(self, user_id):
         """
-        Get complete wallet data for a user.
+        Get wallet data for a user.
         
         Args:
             user_id: User ID
             
         Returns:
-            dict: Wallet data including balance and history
+            dict: Wallet data including balance and timestamps
         """
-        wallets = self.__read_all_wallets()
-        user_id = str(user_id)
-        
-        if user_id in wallets:
-            return wallets[user_id]
-        
-        # Return default wallet structure if not exists
+        user = self.__get_user(user_id)
+        if user:
+            return {
+                'user_id': str(user_id),
+                'balance': float(user.wallet_balance or 0.0),
+                'created_at': user.created_at.isoformat() if user.created_at else datetime.now().isoformat(),
+                'last_updated': user.updated_at.isoformat() if user.updated_at else datetime.now().isoformat()
+            }
         return {
-            'user_id': user_id,
+            'user_id': str(user_id),
             'balance': 0.0,
             'created_at': datetime.now().isoformat(),
             'last_updated': datetime.now().isoformat()
         }
-    
+
     def create_wallet(self, user_id, initial_balance=0):
         """
-        Create a new wallet for a user.
+        Initialise wallet balance for a user.
+        
+        Since balance now lives on the User row, this just sets
+        wallet_balance to initial_balance if it is currently 0.
         
         Args:
             user_id: User ID
             initial_balance: Starting balance (default 0)
             
         Returns:
-            dict: Created wallet data
+            dict: Wallet data
         """
-        wallets = self.__read_all_wallets()
-        user_id = str(user_id)
-        
-        if user_id not in wallets:
-            wallets[user_id] = {
-                'user_id': user_id,
-                'balance': float(initial_balance),
-                'created_at': datetime.now().isoformat(),
-                'last_updated': datetime.now().isoformat()
-            }
-            self.__write_all_wallets(wallets)
-        
-        return wallets[user_id]
-    
+        user = self.__get_user(user_id)
+        if user and (user.wallet_balance is None or user.wallet_balance == 0.0):
+            self.__save_balance(user, initial_balance)
+        return self.get_wallet(user_id)
+
     def add_money(self, user_id, amount, payment_method='card', description='Wallet Recharge'):
         """
         Add money to wallet using payment gateway.
@@ -507,39 +465,29 @@ class WalletManager:
         Raises:
             CustomException: If amount is invalid or payment fails
         """
-        # Validate amount
         if amount <= 0:
             raise CustomException("Amount must be greater than 0")
-        
-        # Process payment through gateway
+
+        # Process payment through gateway (records to transactions.txt)
         txn_result = self.payment_gateway.process_payment(
             amount=amount,
             payment_method=payment_method,
             user_id=user_id,
             description=description
         )
-        
-        # Only add to wallet if payment succeeded
+
+        # Only update DB balance if payment succeeded
         if txn_result['status'] == 'success':
-            wallets = self.__read_all_wallets()
-            user_id = str(user_id)
-            
-            if user_id not in wallets:
-                wallets[user_id] = {
-                    'user_id': user_id,
-                    'balance': 0.0,
-                    'created_at': datetime.now().isoformat()
-                }
-            
-            # Update balance
-            wallets[user_id]['balance'] = float(wallets[user_id].get('balance', 0)) + float(amount)
-            wallets[user_id]['last_updated'] = datetime.now().isoformat()
-            
-            self.__write_all_wallets(wallets)
-            txn_result['new_balance'] = wallets[user_id]['balance']
-        
+            user = self.__get_user(user_id)
+            if user is None:
+                raise CustomException(f"User {user_id} not found in database")
+
+            new_balance = float(user.wallet_balance or 0.0) + float(amount)
+            self.__save_balance(user, new_balance)
+            txn_result['new_balance'] = new_balance
+
         return txn_result
-    
+
     def deduct_money(self, user_id, amount, description='Service Purchase', username=None):
         """
         Deduct money from wallet for purchase.
@@ -559,28 +507,24 @@ class WalletManager:
         """
         if amount <= 0:
             raise CustomException("Amount must be greater than 0")
-        
-        wallets = self.__read_all_wallets()
-        user_id = str(user_id)
-        
-        current_balance = 0
-        if user_id in wallets:
-            current_balance = float(wallets[user_id].get('balance', 0))
-        
+
+        user = self.__get_user(user_id)
+        if user is None:
+            raise CustomException(f"User {user_id} not found in database")
+
+        current_balance = float(user.wallet_balance or 0.0)
+
         # Check sufficient balance
         if current_balance < amount:
             raise InsufficientBalanceException(required=amount, available=current_balance)
-        
-        # Deduct amount
-        wallets[user_id]['balance'] = current_balance - float(amount)
-        wallets[user_id]['last_updated'] = datetime.now().isoformat()
-        
-        self.__write_all_wallets(wallets)
-        
-        # Record transaction
+
+        new_balance = current_balance - float(amount)
+        self.__save_balance(user, new_balance)
+
+        # Record transaction to transactions.txt
         txn_result = {
             'id': self.payment_gateway.generate_transaction_id(),
-            'user_id': user_id,
+            'user_id': str(user_id),
             'username': username or f'User #{user_id}',
             'amount': float(amount),
             'method': 'wallet',
@@ -590,13 +534,12 @@ class WalletManager:
             'date': datetime.now().strftime('%Y-%m-%d'),
             'time': datetime.now().strftime('%H:%M:%S'),
             'timestamp': datetime.now().isoformat(),
-            'new_balance': wallets[user_id]['balance']
+            'new_balance': new_balance
         }
-        
+
         self.payment_gateway.save_transaction(txn_result)
-        
         return txn_result
-    
+
     def credit_seller(self, user_id, amount, description='Payment Received', username=None, transaction_id=None):
         """
         Credit money to seller's wallet when a purchase is made.
@@ -613,28 +556,18 @@ class WalletManager:
         """
         if amount <= 0:
             raise CustomException("Amount must be greater than 0")
-        
-        wallets = self.__read_all_wallets()
-        user_id = str(user_id)
-        
-        # Create wallet if doesn't exist
-        if user_id not in wallets:
-            wallets[user_id] = {
-                'user_id': user_id,
-                'balance': 0.0,
-                'created_at': datetime.now().isoformat()
-            }
-        
-        # Add amount to seller's wallet
-        wallets[user_id]['balance'] = float(wallets[user_id].get('balance', 0)) + float(amount)
-        wallets[user_id]['last_updated'] = datetime.now().isoformat()
-        
-        self.__write_all_wallets(wallets)
-        
-        # Record transaction as credit for seller
+
+        user = self.__get_user(user_id)
+        if user is None:
+            raise CustomException(f"Seller user {user_id} not found in database")
+
+        new_balance = float(user.wallet_balance or 0.0) + float(amount)
+        self.__save_balance(user, new_balance)
+
+        # Record transaction to transactions.txt
         txn_result = {
             'id': transaction_id or self.payment_gateway.generate_transaction_id(),
-            'user_id': user_id,
+            'user_id': str(user_id),
             'username': username or f'User #{user_id}',
             'amount': float(amount),
             'method': 'wallet',
@@ -644,13 +577,12 @@ class WalletManager:
             'date': datetime.now().strftime('%Y-%m-%d'),
             'time': datetime.now().strftime('%H:%M:%S'),
             'timestamp': datetime.now().isoformat(),
-            'new_balance': wallets[user_id]['balance']
+            'new_balance': new_balance
         }
-        
+
         self.payment_gateway.save_transaction(txn_result)
-        
         return txn_result
-    
+
     def get_transaction_history(self, user_id):
         """
         Get wallet transaction history for a user.
