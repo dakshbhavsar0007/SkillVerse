@@ -373,6 +373,7 @@ def google_callback():
     from werkzeug.security import generate_password_hash
     import os
     from datetime import timedelta
+    from flask import session
     
     try:
         token = oauth.google.authorize_access_token()
