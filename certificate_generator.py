@@ -73,7 +73,8 @@ def generate_certificate(student_name: str,
                          provider_name: str,
                          order_id: int,
                          cert_id: str = None,
-                         completion_date: str = None) -> str:
+                         completion_date: str = None,
+                         template_path: str = None) -> str:
     """
     Overlay student data onto the certificate template and save as PDF.
 
@@ -84,6 +85,7 @@ def generate_certificate(student_name: str,
         order_id        : Order ID number
         cert_id         : Certificate ID (auto-generated if None)
         completion_date : Date string e.g. "February 17, 2026" (today if None)
+        template_path   : Optional absolute path to override default template location
 
     Returns:
         str: Absolute path to the generated PDF file
@@ -94,14 +96,22 @@ def generate_certificate(student_name: str,
         completion_date = datetime.now().strftime("%B %d, %Y")
 
     # ── Load template ─────────────────────────────────────────────────────
-    if not os.path.exists(TEMPLATE_PATH):
-        raise FileNotFoundError(
-            f"Certificate template not found at {TEMPLATE_PATH}. "
-            "Please save your Antigravity certificate image as "
-            "'static/certificate_template.png'"
-        )
+    if not template_path:
+        template_path = TEMPLATE_PATH
 
-    img = Image.open(TEMPLATE_PATH).convert('RGBA')
+    print(f"[CertGen] Looking for template at: {template_path}")
+    
+    if not os.path.exists(template_path):
+        # Debugging info for logs
+        error_msg = (
+            f"Certificate template not found at {template_path}. "
+            f"CWD: {os.getcwd()}, Base: {BASE_DIR}. "
+            f"Exists? {os.path.exists(template_path)}"
+        )
+        print(error_msg)
+        raise FileNotFoundError(error_msg)
+
+    img = Image.open(template_path).convert('RGBA')
     # Work at high resolution — template is ~2480x2480 (square from Antigravity)
     W, H = img.size
 

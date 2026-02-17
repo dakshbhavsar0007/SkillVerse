@@ -1504,6 +1504,7 @@ def complete_order(order_id):
             provider_name   = provider.full_name or provider.username,
             order_id        = order.id,
             cert_id         = cert_id,
+            template_path   = os.path.join(current_app.root_path, 'static', 'certificate_template.png'),
         )
 
         # ── 3. Save cert record to DB ─────────────────────────────────────
