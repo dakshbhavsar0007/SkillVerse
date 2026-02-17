@@ -1850,6 +1850,98 @@ def toggle_user_status(user_id):
     return redirect(url_for('admin.users'))
 
 
+@admin_bp.route('/users/<int:user_id>/delete', methods=['POST'])
+@admin_required
+def delete_user(user_id):
+    """
+    Permanently delete a user
+    
+    Args:
+        user_id: User ID
+        
+    Returns:
+        Redirect
+    """
+    user = User.query.get_or_404(user_id)
+    
+    # SECURITY: Prevent admin from looking themselves
+    if user.id == current_user.id:
+        flash('You cannot delete your own account!', 'danger')
+        return redirect(url_for('admin.users'))
+        
+    try:
+        username = user.username
+        
+        # 1. Delete Services owned by user (and their related data)
+        # This mirrors the logic in service_delete
+        services = Service.query.filter_by(user_id=user.id).all()
+        for service in services:
+            # Delete related orders and their messages
+            orders = Order.query.filter_by(service_id=service.id).all()
+            for order in orders:
+                Message.query.filter_by(order_id=order.id).delete()
+                # Delete bookings linked to this order
+                Booking.query.filter_by(order_id=order.id).delete()
+                db.session.delete(order)
+            
+            # Delete related reviews
+            Review.query.filter_by(service_id=service.id).delete()
+            
+            # Delete related favorites
+            Favorite.query.filter_by(service_id=service.id).delete()
+            
+            # Delete bookings linked to this service
+            Booking.query.filter_by(service_id=service.id).delete()
+            
+            db.session.delete(service)
+            
+        # 2. Delete Orders made by user (as buyer)
+        # We need to handle this carefully to avoid FK constraints if not already handled
+        orders_as_buyer = Order.query.filter_by(buyer_id=user.id).all()
+        for order in orders_as_buyer:
+            Message.query.filter_by(order_id=order.id).delete()
+            Booking.query.filter_by(order_id=order.id).delete()
+            db.session.delete(order)
+            
+        # 3. Delete Reviews written by user
+        Review.query.filter_by(user_id=user.id).delete()
+        
+        # 4. Delete Favorites made by user
+        Favorite.query.filter_by(user_id=user.id).delete()
+        
+        # 5. Delete Bookings made by user
+        Booking.query.filter_by(client_id=user.id).delete()
+        
+        # 6. Delete Availability Slots (if provider)
+        # First delete bookings for these slots
+        slots = AvailabilitySlot.query.filter_by(provider_id=user.id).all()
+        for slot in slots:
+             Booking.query.filter_by(slot_id=slot.id).delete()
+             db.session.delete(slot)
+             
+        # 7. Delete Testimonials
+        Testimonial.query.filter_by(user_id=user.id).delete()
+        
+        # 8. Delete Projects/Portfolio
+        ProjectShowcase.query.filter_by(user_id=user.id).delete()
+        
+        # 9. Delete Notifications
+        Notification.query.filter_by(user_id=user.id).delete()
+        
+        # 10. Delete User
+        db.session.delete(user)
+        db.session.commit()
+        
+        flash(f'User {username} and all associated data have been permanently deleted.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Error deleting user: {str(e)}', 'danger')
+        print(f"Delete User Error: {e}")
+        
+    return redirect(url_for('admin.users'))
+
+
 @admin_bp.route('/services')
 @admin_required
 def services():
