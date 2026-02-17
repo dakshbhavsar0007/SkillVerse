@@ -242,62 +242,13 @@
             {% endif %}
         </div>
     </div>
-</div>
 
-<div class="row g-4">
-    <!-- Sidebar: Details -->
-    <div class="col-lg-4 order-lg-2">
-        <!-- Project Card -->
-        <div class="workroom-card mb-4 fade-in-up delay-100 position-sticky" style="top: 100px;">
-            <div class="project-card-header">
-                <h5 class="fw-bold mb-0">Details</h5>
-            </div>
-            <div class="p-4">
-                <!-- Service Info -->
-                <div class="d-flex align-items-start mb-4">
-                    <img src="{{ order.service.get_image_url() }}"
-                        onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=500&q=80';"
-                        class="rounded-3 me-3 object-fit-cover border border-secondary border-opacity-25" width="64"
-                        height="64">
-                    <div>
-                        <h6 class="fw-bold mb-1 line-clamp-2">{{ order.service.title }}</h6>
-                        <span class="badge bg-secondary bg-opacity-10 text-secondary border">{{ order.budget_tier }}
-                            Tier</span>
-                    </div>
-                </div>
+    <div class="row g-4">
+        <!-- Sidebar: Details -->
+        <div class="col-lg-4 order-lg-2">
+            <!-- Project Card -->
+            <div class="workroom-card mb-4 fade-in-up delay-100 position-sticky" style="top: 100px;">
 
-                <!-- Session Status with nicer UI -->
-                <div class="mb-4">
-                    <span class="info-label">Current Session</span>
-                    {% if booking and booking.status not in ['cancelled', 'rejected'] %}
-                    <div class="p-3 rounded-3 border"
-                        style="background-color: var(--workroom-bg); border-color: var(--workroom-border) !important;">
-                        <div class="d-flex align-items-center text-success fw-bold mb-2">
-                            <i class="bi bi-calendar-check-fill me-2"></i>Scheduled
-                        </div>
-                        {% set start_local = booking.slot.start_time | to_ist %}
-                        <div class="fs-5 fw-bold text-dark mb-1">{{ start_local.strftime('%I:%M %p') }}</div>
-                        <div class="small text-muted">{{ start_local.strftime('%A, %b %d, %Y') }} (IST)</div>
-                    </div>
-                    {% else %}
-                    <div class="p-3 rounded-3 border border-warning border-opacity-50"
-                        style="background-color: rgba(245, 158, 11, 0.05);">
-                        <div class="d-flex align-items-center text-warning fw-bold mb-2">
-                            <i class="bi bi-calendar-event me-2"></i>Needs Scheduling
-                        </div>
-
-                        {% if current_user.id == order.buyer_id %}
-                        <p class="small text-muted mb-3">Please select a time slot to begin.</p>
-                        <button class="btn btn-warning btn-sm w-100 rounded-pill shadow-sm fw-bold text-dark"
-                            data-bs-toggle="modal" data-bs-target="#calendarModal">
-                            Book Session
-                        </button>
-                        {% else %}
-                        <p class="small text-muted mb-0 fst-italic">Waiting for client to book.</p>
-                        {% endif %}
-                    </div>
-                    {% endif %}
-                </div>
                 <div class="project-card-header">
                     <h5 class="fw-bold mb-0">Details</h5>
                 </div>
@@ -435,7 +386,8 @@
                         <p class="text-muted mb-4 lead fs-6">
                             This will finalize the order and automatically issue an official
                             <span class="fw-bold text-dark"
-                                style="background-color: #FFD700; padding: 0 4px;">Certificate of Completion</span>
+                                style="background-color: #FFD700; padding: 0 4px;">Certificate
+                                of Completion</span>
                             to the buyer.
                         </p>
 
