@@ -84,6 +84,13 @@
                     <a class="nav-link fw-bold py-3 border-0 text-muted hover-primary" id="reviews-tab"
                         data-bs-toggle="tab" href="#reviews" role="tab">Reviews</a>
                 </li>
+                {% if user.certificates_received|length > 0 or (current_user.is_authenticated and current_user.id ==
+                user.id) %}
+                <li class="nav-item">
+                    <a class="nav-link fw-bold py-3 border-0 text-muted hover-primary" id="certificates-tab"
+                        data-bs-toggle="tab" href="#certificates" role="tab">Certificates</a>
+                </li>
+                {% endif %}
             </ul>
         </div>
     </div>
@@ -194,6 +201,77 @@
                         <p class="text-muted">Reviews from satisfied clients will appear here.</p>
                     </div>
                 </div>
+            </div>
+
+            <!-- Certificates Tab -->
+            <div class="tab-pane fade" id="certificates" role="tabpanel">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h4 class="fw-bold">My Certificates</h4>
+                </div>
+
+                {% if user.certificates_received|length > 0 %}
+                <div class="row g-4">
+                    {% for cert in user.certificates_received|sort(attribute='issued_at', reverse=True) %}
+                    <div class="col-md-6 col-lg-4">
+                        <div
+                            class="card h-100 border-0 shadow-sm rounded-4 overflow-hidden position-relative hover-lift">
+                            <!-- Premium Header -->
+                            <div class="p-4 text-center position-relative overflow-hidden"
+                                style="background: linear-gradient(135deg, #1a1a4e 0%, #0f172a 100%); min-height: 180px;">
+                                <div class="position-absolute top-0 start-0 w-100 h-100 opacity-10"
+                                    style="background-image: radial-gradient(#FFD700 1px, transparent 1px); background-size: 20px 20px;">
+                                </div>
+
+                                <div class="d-inline-flex align-items-center justify-content-center bg-white bg-opacity-10 text-warning rounded-circle p-3 mb-3 shadow-sm border border-warning border-opacity-25"
+                                    style="width: 64px; height: 64px;">
+                                    <i class="bi bi-award-fill fs-2"></i>
+                                </div>
+                                <h6 class="text-white fw-bold mb-1 text-truncate px-2">{{ cert.skill_name }}</h6>
+                                <div class="small text-white opacity-75">ID: {{ cert.cert_id }}</div>
+                            </div>
+
+                            <!-- Body -->
+                            <div class="card-body p-4 text-center d-flex flex-column bg-white">
+                                <p class="text-muted small mb-3">
+                                    Issued on <span class="fw-bold text-dark">{{ cert.issued_at.strftime('%b %d, %Y')
+                                        }}</span>
+                                </p>
+
+                                <div
+                                    class="d-flex align-items-center justify-content-center gap-2 mb-4 p-2 bg-light rounded-3">
+                                    <img src="{{ cert.provider.get_avatar_url() }}" class="rounded-circle shadow-sm"
+                                        width="24" height="24">
+                                    <span class="small text-muted">Instructor:
+                                        <a href="{{ url_for('user.profile', username=cert.provider.username) }}"
+                                            class="text-dark fw-bold text-decoration-none">
+                                            {{ cert.provider.username }}
+                                        </a>
+                                    </span>
+                                </div>
+
+                                <a href="{{ url_for('user.download_certificate', cert_id=cert.cert_id) }}"
+                                    class="btn w-100 py-2 rounded-pill fw-bold text-dark mt-auto shadow-sm transition-transform hover-scale"
+                                    style="background: linear-gradient(135deg, #FFD700 0%, #FDB931 100%); border: none;">
+                                    <i class="bi bi-file-earmark-pdf-fill me-2"></i>Download PDF
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="bg-white rounded-4 shadow-sm p-4 text-center py-5">
+                    <div class="bg-light d-inline-flex p-3 rounded-circle mb-3">
+                        <i class="bi bi-award fs-1 text-muted opacity-50"></i>
+                    </div>
+                    <h5>No certificates earned yet</h5>
+                    <p class="text-muted mb-4">Complete services to earn certificates.</p>
+                    {% if current_user.is_authenticated and current_user.id == user.id %}
+                    <a href="{{ url_for('service.browse') }}" class="btn btn-outline-primary rounded-pill px-4">Browse
+                        Services</a>
+                    {% endif %}
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>

@@ -815,6 +815,36 @@ class Testimonial(db.Model):
         return f'<Testimonial {self.id} by {self.user_id}>'
 
 
+class Certificate(db.Model):
+    """
+    Certificate Model - Stores issued completion certificates.
+
+    DBMS Concepts:
+    - Primary Key: id
+    - Foreign Keys: order_id, student_id, provider_id
+    - Unique constraint on order_id (one cert per order)
+    """
+
+    __tablename__ = 'certificates'
+
+    id           = db.Column(db.Integer, primary_key=True)
+    cert_id      = db.Column(db.String(20), unique=True, nullable=False)
+    order_id     = db.Column(db.Integer, db.ForeignKey('orders.id'), unique=True, nullable=False)
+    student_id   = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    provider_id  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    skill_name   = db.Column(db.String(200), nullable=False)
+    pdf_filename = db.Column(db.String(255), nullable=False)
+    issued_at    = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Relationships
+    order    = db.relationship('Order', backref=db.backref('certificate', uselist=False))
+    student  = db.relationship('User', foreign_keys=[student_id],  backref='certificates_received')
+    provider = db.relationship('User', foreign_keys=[provider_id], backref='certificates_issued')
+
+    def __repr__(self):
+        return f'<Certificate {self.cert_id} Order {self.order_id}>'
+
+
 class ContactMessage(db.Model):
     """
     ContactMessage Model - Stores messages from the contact form

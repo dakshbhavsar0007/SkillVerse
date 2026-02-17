@@ -219,6 +219,27 @@
                 <i class="bi bi-x-circle-fill"></i> Cancelled
             </span>
             {% endif %}
+
+            {% if order.certificate %}
+            <div class="mt-3 p-3 bg-white border border-primary rounded-3 shadow-sm text-start"
+                style="border-color: #1a1a4e !important;">
+                <div class="d-flex align-items-center mb-2">
+                    <span class="fs-5 me-2">🎓</span>
+                    <h6 class="mb-0 fw-bold" style="color: #1a1a4e;">Certificate of Completion Issued</h6>
+                </div>
+                <div class="small text-muted mb-2">
+                    <div>Certificate ID: <span class="fw-bold text-dark">{{ order.certificate.cert_id }}</span></div>
+                    <div>Issued on: {{ order.certificate.issued_at.strftime('%B %d, %Y') }}</div>
+                </div>
+                {% if current_user.id == order.buyer_id or current_user.id == order.seller_id %}
+                <a href="{{ url_for('user.download_certificate', cert_id=order.certificate.cert_id) }}"
+                    class="btn btn-sm w-100 fw-bold text-dark"
+                    style="background: linear-gradient(135deg, #FFD700 0%, #FDB931 100%); border: none;">
+                    ⬇ Download Certificate
+                </a>
+                {% endif %}
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -305,17 +326,81 @@
                         </button>
                     </form>
                     {% endif %}
-                    {% elif order.status == 'in_progress' %}
-                    <h6 class="fw-bold mb-3">Project Status</h6>
-                    <form action="{{ url_for('user.order_action', order_id=order.id, action='complete') }}"
-                        method="POST">
-                        <button class="btn btn-primary w-100 py-2 rounded-pill shadow-sm btn-sweep">
-                            <i class="bi bi-award-fill me-2"></i>Deliver Work
-                        </button>
-                    </form>
-                    {% endif %}
                 </div>
                 {% endif %}
+
+                <!-- Seller Completion Action (Modified) -->
+                {% if current_user.id == order.seller_id and order.status == 'in_progress' %}
+                <div class="card-footer bg-white p-4 border-top">
+                    <h6 class="fw-bold mb-3">Project Status</h6>
+                    <form action="{{ url_for('user.complete_order', order_id=order.id) }}" method="POST"
+                        onsubmit="return confirm('Are you sure? A certificate of completion will be issued to the buyer.');">
+                        <button type="submit" class="btn w-100 py-2 rounded-pill shadow-sm fw-bold text-white"
+                            style="background-color: #B8860B; border: 1px solid #B8860B;">
+                            <i class="bi bi-award-fill me-2"></i>Mark as Complete
+                        </button>
+                    </form>
+                    <p class="text-muted small mt-2 mb-0 text-center">
+                        <i class="bi bi-info-circle me-1"></i>Issuing a certificate requires completion.
+                    </p>
+                </div>
+                {% endif %}
+
+                <!-- Certificate Section (For Buyer/Seller) -->
+                {% if order.certificate and (current_user.id == order.buyer_id or current_user.id == order.seller_id) %}
+                <div class="card-footer bg-white p-4 border-top">
+                    <div class="text-center">
+                        <div
+                            class="d-inline-flex align-items-center justify-content-center bg-warning bg-opacity-10 text-warning rounded-circle p-3 mb-3">
+                            <i class="bi bi-award-fill fs-2"></i>
+                        </div>
+                        <h6 class="fw-bold mb-1" style="color: #1a1a4e;">Certificate Issued</h6>
+                        <p class="text-muted small mb-3">ID: {{ order.certificate.cert_id }} • {{
+                            order.certificate.issued_at.strftime('%b %d, %Y') }}</p>
+
+                        <a href="{{ url_for('user.download_certificate', cert_id=order.certificate.cert_id) }}"
+                            class="btn w-100 py-2 rounded-pill shadow-sm fw-bold text-dark"
+                            style="background: linear-gradient(135deg, #FFD700 0%, #FDB931 100%); border: none;">
+                            <i class="bi bi-file-earmark-pdf-fill me-2"></i>Download Certificate
+                        </a>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Order Completion Confirmation Modal -->
+        <div class="modal fade" id="completeOrderModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+                    <div class="modal-header border-0 bg-light p-4">
+                        <h5 class="modal-title fw-bold">Complete Order</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body p-4 text-center">
+                        <div class="mb-4 text-success display-1">
+                            <i class="bi bi-check-circle-fill"></i>
+                        </div>
+                        <h4 class="fw-bold mb-2">Mark as Complete?</h4>
+                        <p class="text-muted mb-4 lead fs-6">
+                            This will finalize the order and automatically issue an official
+                            <span class="fw-bold text-dark"
+                                style="background-color: #FFD700; padding: 0 4px;">Certificate of Completion</span>
+                            to the buyer.
+                        </p>
+
+                        <form action="{{ url_for('user.order_action', order_id=order.id, action='complete') }}"
+                            method="POST">
+                            <div class="d-grid gap-2">
+                                <button type="submit" class="btn btn-primary rounded-pill py-3 fw-bold shadow-sm">
+                                    Confirm & Issue Certificate
+                                </button>
+                                <button type="button" class="btn btn-light rounded-pill py-2"
+                                    data-bs-dismiss="modal">Cancel</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
 

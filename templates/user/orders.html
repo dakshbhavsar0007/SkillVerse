@@ -96,11 +96,26 @@
                                     {% set status_icon = 'bi-x-circle-fill' %}
                                     {% endif %}
 
-                                    <span
-                                        class="badge rounded-pill {{ status_class }} border border-opacity-10 px-2 py-1 gap-1">
-                                        <i class="bi {{ status_icon }}"></i>
-                                        {{ order.status|replace('_', ' ')|title }}
-                                    </span>
+                                    <div class="d-flex flex-column gap-1 align-items-start">
+                                        <span
+                                            class="badge rounded-pill {{ status_class }} border border-opacity-10 px-2 py-1 gap-1">
+                                            <i class="bi {{ status_icon }}"></i>
+                                            {{ order.status|replace('_', ' ')|title }}
+                                        </span>
+
+                                        {% if order.status == 'completed' and order.certificate and current_user.id ==
+                                        order.buyer_id %}
+                                        <object>
+                                            <a href="{{ url_for('user.download_certificate', cert_id=order.certificate.cert_id) }}"
+                                                class="badge rounded-pill text-decoration-none px-2 py-1 gap-1 d-inline-flex align-items-center shadow-sm"
+                                                style="background-color: #B8860B; color: white !important; border: none; z-index: 2; position: relative;"
+                                                title="Download Certificate">
+                                                <i class="bi bi-award-fill"></i>
+                                                Certificate Available
+                                            </a>
+                                        </object>
+                                        {% endif %}
+                                    </div>
                                 </div>
 
                                 <!-- Price -->

@@ -159,6 +159,54 @@
             </div>
         </div>
 
+        <!-- Row 3.5: Certificates Issued -->
+        <div class="panel span-4">
+            <div class="panel-header">
+                <span class="panel-title">📜 Certificates Issued</span>
+            </div>
+            <div style="overflow-x: auto;">
+                {% if current_user.certificates_issued|length > 0 %}
+                <table class="modern-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Skill</th>
+                            <th>Date Issued</th>
+                            <th class="text-end">Certificate ID</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cert in current_user.certificates_issued|sort(attribute='issued_at', reverse=True) %}
+                        {% if loop.index <= 5 %} <tr>
+                            <td>
+                                <div class="d-flex align-items-center gap-2">
+                                    <img src="{{ cert.student.get_avatar_url() }}" width="24" height="24"
+                                        class="rounded-circle">
+                                    <span style="font-weight: 600;">{{ cert.student.full_name or cert.student.username
+                                        }}</span>
+                                </div>
+                            </td>
+                            <td>{{ cert.skill_name }}</td>
+                            <td class="text-secondary">{{ cert.issued_at.strftime('%b %d, %Y') }}</td>
+                            <td class="text-end">
+                                <span class="text-muted small"
+                                    style="font-family: monospace; background: #f1f5f9; padding: 2px 6px; rounded: 4px;">
+                                    {{ cert.cert_id }}
+                                </span>
+                            </td>
+                            </tr>
+                            {% endif %}
+                            {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center py-5 text-secondary">
+                    <p class="mb-0">No certificates issued yet. Complete an order to issue your first certificate!</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
         <!-- Row 4: Recent Orders -->
         <div class="panel span-4">
             <div class="panel-header">

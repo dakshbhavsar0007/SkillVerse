@@ -162,6 +162,25 @@
                 <span class="completion-badge">✓ Completed</span>
             </center>
 
+            {% if order.certificate %}
+            <div
+                style="border: 2px solid #B8860B; background-color: #fffbf0; border-radius: 8px; padding: 24px; margin: 24px 0; text-align: center;">
+                <h3 style="color: #1a1a4e; margin-top: 0;">🎓 Your Certificate of Completion is Ready!</h3>
+                <p style="color: #1a1a4e; margin: 10px 0;">Certificate ID: <strong>{{ order.certificate.cert_id
+                        }}</strong></p>
+
+                <a href="{{ url_for('user.download_certificate', cert_id=order.certificate.cert_id, _external=True) }}"
+                    style="display: inline-block; background: linear-gradient(135deg, #FFD700 0%, #FDB931 100%); color: #1a1a4e; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: bold; margin: 16px 0;">
+                    Download Your Certificate
+                </a>
+
+                <p style="font-size: 12px; color: #666; margin-bottom: 0;">
+                    This certificate was issued on {{ order.certificate.issued_at.strftime('%B %d, %Y') }} by SkillVerse
+                    Platform.
+                </p>
+            </div>
+            {% endif %}
+
             <div class="order-details">
                 <h3>Order Summary</h3>
                 <div class="detail-row">

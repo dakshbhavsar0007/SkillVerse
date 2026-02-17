@@ -143,6 +143,10 @@ def create_app(config_name='default'):
     # Create database tables
     with app.app_context():
         db.create_all()
+
+        # Run schema migrations (adds new columns safely to existing tables)
+        from migrate_db import run_migrations
+        run_migrations(app)
         
         # Create default admin user if not exists
         from init_db import create_default_admin, seed_categories

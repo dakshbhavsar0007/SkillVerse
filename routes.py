@@ -23,6 +23,8 @@ from functools import wraps
 from models import db, User, Service, Category, Review, Order, Favorite, Notification, Message, ProjectShowcase, AvailabilitySlot, Booking, Testimonial, ContactMessage
 from managers import (service_manager, user_manager, search_engine, 
                      review_system, order_manager, category_manager, notification_manager, chat_manager, availability_manager)
+from certificate_generator import generate_certificate, generate_cert_id
+from models import Certificate
 from werkzeug.utils import secure_filename
 import os
 from flask import current_app
@@ -1459,8 +1461,186 @@ def orders():
 
 
 # ============================================================================
-# WALLET & PAYMENT ROUTES (Unit-8, 9: OOP, Unit-6: File Handling)
+# CERTIFICATE ROUTES (Unit-6: File Handling, PDF Generation)
 # ============================================================================
+
+@user_bp.route('/order/<int:order_id>/complete', methods=['POST'])
+@login_required
+def complete_order(order_id):
+    """
+    Called when the PROVIDER clicks 'Mark as Complete'.
+
+    - Updates order status to 'completed'
+    - Generates a PDF certificate for the buyer
+    - Saves certificate record to DB
+    - (Optional) sends email to buyer with download link
+    """
+    order = Order.query.get_or_404(order_id)
+
+    # Only the seller (provider) can mark complete
+    if current_user.id != order.seller_id:
+        flash('Unauthorized action.', 'danger')
+        return redirect(url_for('user.order_detail', order_id=order_id))
+
+    if order.status == 'completed':
+        flash('Order is already marked as complete.', 'info')
+        return redirect(url_for('user.order_detail', order_id=order_id))
+
+    # ── 1. Update order status ────────────────────────────────────────────
+    order.update_status('completed')
+    db.session.commit()
+
+    # ── 2. Generate certificate ───────────────────────────────────────────
+    try:
+        student  = User.query.get(order.buyer_id)
+        provider = User.query.get(order.seller_id)
+        service  = order.service
+
+        cert_id  = generate_cert_id()
+
+        pdf_path = generate_certificate(
+            student_name    = student.full_name or student.username,
+            skill_name      = service.title,
+            provider_name   = provider.full_name or provider.username,
+            order_id        = order.id,
+            cert_id         = cert_id,
+        )
+
+        # ── 3. Save cert record to DB ─────────────────────────────────────
+        cert = Certificate(
+            cert_id      = cert_id,
+            order_id     = order.id,
+            student_id   = order.buyer_id,
+            provider_id  = order.seller_id,
+            skill_name   = service.title,
+            pdf_filename = os.path.basename(pdf_path),
+        )
+        db.session.add(cert)
+        
+        # ── 4. Notify the buyer ───────────────────────────────────────────
+        notification = Notification(
+            user_id = order.buyer_id,
+            title   = '🎓 Your Certificate is Ready!',
+            message = (f'Congratulations! You have completed "{service.title}". '
+                       f'Your certificate ({cert_id}) is ready to download.'),
+            link    = url_for('user.download_certificate', cert_id=cert_id),
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+        # ── 5. (Optional) send email ──────────────────────────────────────
+        try:
+            _send_certificate_email(student, cert, pdf_path)
+        except Exception as mail_err:
+            print(f"[Certificate] Email failed (non-fatal): {mail_err}")
+
+        flash(f'Order marked complete! Certificate {cert_id} issued to {student.username}.', 'success')
+
+    except Exception as e:
+        print(f"[Certificate] Generation failed: {e}")
+        flash('Order marked complete, but certificate generation failed. '
+              'Please contact support.', 'warning')
+
+    return redirect(url_for('user.order_detail', order_id=order_id))
+
+
+@user_bp.route('/certificate/<cert_id>/download')
+@login_required
+def download_certificate(cert_id):
+    """
+    Serves the certificate PDF.
+    Only the student (buyer) or the provider or admin can download it.
+    """
+    from flask import send_file, abort
+    
+    cert = Certificate.query.filter_by(cert_id=cert_id).first_or_404()
+
+    # Access control
+    allowed = (
+        current_user.id == cert.student_id or
+        current_user.id == cert.provider_id or
+        current_user.is_admin()
+    )
+    if not allowed:
+        abort(403)
+
+    BASE_DIR   = os.path.abspath(os.path.dirname(__file__))
+    certs_dir  = os.path.join(BASE_DIR, 'static', 'certificates')
+    pdf_path   = os.path.join(certs_dir, cert.pdf_filename)
+
+    if not os.path.exists(pdf_path):
+        abort(404)
+
+    return send_file(
+        pdf_path,
+        as_attachment=True,
+        download_name=f"SkillVerse_Certificate_{cert.cert_id}.pdf",
+        mimetype='application/pdf'
+    )
+
+
+@user_bp.route('/api/certificate/order/<int:order_id>')
+@login_required
+def get_order_certificate(order_id):
+    """Returns certificate info for an order as JSON (for frontend use)."""
+    cert = Certificate.query.filter_by(order_id=order_id).first()
+    if not cert:
+        return jsonify({'exists': False})
+    return jsonify({
+        'exists'      : True,
+        'cert_id'     : cert.cert_id,
+        'issued_at'   : cert.issued_at.strftime('%B %d, %Y'),
+        'download_url': url_for('user.download_certificate', cert_id=cert.cert_id),
+    })
+
+
+def _send_certificate_email(student, cert, pdf_path):
+    """Send certificate download link to the student via email."""
+    from email_utils import send_async_email, _get_default_sender
+    from flask import current_app
+    from threading import Thread
+
+    download_url = url_for('user.download_certificate',
+                           cert_id=cert.cert_id, _external=True)
+    sender = _get_default_sender()
+
+    html_content = f"""
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto">
+            <h2 style="color:#1a1a4e">Congratulations, {student.full_name or student.username}! 🎉</h2>
+            <p>You have successfully completed <strong>{cert.skill_name}</strong>.</p>
+            <p>Your Certificate ID is: <strong>{cert.cert_id}</strong></p>
+            <p style="margin:30px 0">
+                <a href="{download_url}"
+                   style="background:#B8860B;color:white;padding:14px 28px;
+                          border-radius:6px;text-decoration:none;font-weight:bold">
+                    Download Your Certificate
+                </a>
+            </p>
+            <p style="color:#666;font-size:12px">
+                This certificate was issued on {cert.issued_at.strftime('%B %d, %Y')} 
+                by SkillVerse Platform.
+            </p>
+        </div>
+        """
+    
+    # We need to pass the app object because we are outside a request context in the thread
+    # But wait, send_async_email creates app context if passed app.
+    # However, inside a route function, 'current_app' is a LocalProxy.
+    # We must pass the real app object.
+    app = current_app._get_current_object()
+    
+    # Calling send_async_email directly in a thread to be safe, although send_async_email might do it internally?
+    # email_utils.py's send_async_email doesn't start a thread itself, it's the target function.
+    # send_email starts a thread.
+    # Let's manually start a thread here to keep it async.
+    
+    Thread(
+        target=send_async_email,
+        args=(app, f'🎓 Your SkillVerse Certificate - {cert.skill_name}', student.email, html_content, sender)
+    ).start()
+
+
+
 
 @user_bp.route('/wallet')
 @login_required
