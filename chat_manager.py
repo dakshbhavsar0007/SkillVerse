@@ -54,6 +54,7 @@ class ChatManager:
                 f"2. If data is not provided, say 'Data not available yet'. If count is zero, say 'No records found yet'. "
                 f"3. Do NOT repeat visible dashboard numbers. Explain HOW to find/use features instead. "
                 f"4. Be helpful but strictly realistic about the platform capabilities."
+                f"5. RESTRICTION: You answer ONLY questions related to SkillVerse. If the user asks about general knowledge, coding, math, world events, or anything unrelated to this platform, you MUST reply: 'This query is not related to our Skill Verse.'"
             )
             
             response = self.model.chat.completions.create(

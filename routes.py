@@ -630,6 +630,10 @@ def create():
     Returns:
         Rendered template or redirect
     """
+    if current_user.is_admin():
+        flash('Administrators cannot create services. Please use a provider account.', 'warning')
+        return redirect(url_for('admin.dashboard'))
+
     if request.method == 'POST':
         # Automatically convert user to provider if they're a client
         if current_user.user_type == 'client':
@@ -861,6 +865,10 @@ def place_order(service_id):
     Returns:
         Redirect
     """
+    if current_user.is_admin():
+        flash('Administrators cannot purchase services. Please use a client account.', 'warning')
+        return redirect(url_for('service.detail', service_id=service_id))
+
     # Import payment system for wallet validation
     from payment_system import WalletManager, PaymentGateway, InsufficientBalanceException
     

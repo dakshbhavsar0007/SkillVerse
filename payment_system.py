@@ -91,7 +91,14 @@ class PaymentGateway:
             transactions_file: Path to transactions file (default: transactions.txt)
         """
         self.__success_rate = 1.0  # Private attribute (100% success rate - payments always succeed)
-        self.transactions_file = transactions_file
+        
+        # Check for persistent storage path (Render)
+        self.storage_path = '/var/data'
+        if os.path.exists(self.storage_path):
+            self.transactions_file = os.path.join(self.storage_path, transactions_file)
+        else:
+            self.transactions_file = transactions_file
+            
         self.__ensure_file_exists()
     
     def __ensure_file_exists(self):
@@ -353,7 +360,13 @@ class WalletManager:
             wallet_file: Path to wallet data file
             payment_gateway: PaymentGateway instance for transactions
         """
-        self.wallet_file = wallet_file
+        # Check for persistent storage path (Render)
+        self.storage_path = '/var/data'
+        if os.path.exists(self.storage_path):
+            self.wallet_file = os.path.join(self.storage_path, wallet_file)
+        else:
+            self.wallet_file = wallet_file
+            
         # COMPOSITION: WalletManager HAS-A PaymentGateway
         self.payment_gateway = payment_gateway or PaymentGateway()
         self.__ensure_file_exists()

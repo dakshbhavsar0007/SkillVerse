@@ -60,6 +60,8 @@ def send_email(subject, recipient, template, **kwargs):
         
         return True
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         server = current_app.config.get('MAIL_SERVER')
         port = current_app.config.get('MAIL_PORT')
         current_app.logger.error(f"Error creating/sending email via {server}:{port}: {str(e)}")
