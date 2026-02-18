@@ -393,6 +393,16 @@
                             </span>
                         </div>
                     </div>
+
+                    {% if current_user.id == order.seller_id %}
+                    <form action="{{ url_for('user.delete_order_chat', order_id=order.id) }}" method="POST"
+                        onsubmit="return confirm('Are you sure you want to clear all chat history? This cannot be undone.');">
+                        <button type="submit" class="btn btn-sm btn-outline-danger border-0 rounded-circle"
+                            title="Clear Chat History">
+                            <i class="bi bi-trash3 fs-5"></i>
+                        </button>
+                    </form>
+                    {% endif %}
                 </div>
 
                 <div class="chat-messages" id="chat-messages">

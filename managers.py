@@ -898,6 +898,24 @@ class ChatManager:
         
         return orders
 
+    def delete_chat(self, order_id, user_id):
+        """Delete all messages for an order (Provider only)"""
+        order = Order.query.get(order_id)
+        if not order:
+            return False, "Order not found"
+            
+        # Only provider can delete chat
+        if user_id != order.seller_id:
+            return False, "Unauthorized: Only providers can delete chats"
+            
+        try:
+            Message.query.filter_by(order_id=order_id).delete()
+            db.session.commit()
+            return True, None
+        except Exception as e:
+            db.session.rollback()
+            return False, str(e)
+
 
 class AvailabilityManager:
     """

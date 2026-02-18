@@ -1009,10 +1009,29 @@ def place_order(service_id):
             )
             seller_credit_success = True
             print(f"[DEBUG] Successfully credited ₹{seller_amount} to seller (user_id: {order.seller_id})")
+            
+            # =====================================================================
+            # CREDIT PLATFORM FEE TO ADMIN'S WALLET
+            # =====================================================================
+            platform_fee_amount = order.total_price * platform_fee_percent
+            admin_user = User.query.filter_by(user_type='admin').first()
+            if admin_user:
+                print(f"[DEBUG] Attempting to credit admin (user_id: {admin_user.id}) with ₹{platform_fee_amount}")
+                wallet_mgr.credit_seller(
+                    user_id=admin_user.id,
+                    amount=platform_fee_amount,
+                    description=f'Platform Fee Received: {service.title} (Order #{order.id})',
+                    username=admin_user.username,
+                    transaction_id=buyer_txn_id
+                )
+                print(f"[DEBUG] Successfully credited ₹{platform_fee_amount} to admin (user_id: {admin_user.id})")
+            else:
+                print(f"[WARNING] No admin user found to credit platform fee.")
+
         except Exception as e:
             # Log the error but don't cancel the order - the buyer already paid
             # Admin will need to manually credit the seller
-            print(f"[ERROR] Failed to credit seller: {str(e)}")
+            print(f"[ERROR] Failed to credit seller or admin: {str(e)}")
             # Note: In production, you'd want to queue this for retry or alert admin
         
         # Create notification for the provider
@@ -1343,21 +1362,40 @@ def order_action(order_id, action):
             
     return redirect(url_for('user.order_detail', order_id=order_id))
 
-@user_bp.route('/order/<int:order_id>/message', methods=['POST'])
+@user_bp.route('/order/<int:order_id>/chat/send', methods=['POST'])
 @login_required
 def send_message(order_id):
     """Send chat message"""
-    content = request.form.get('content')
+    content = request.json.get('content')
     if content:
         msg, error = chat_manager.send_message(order_id, current_user.id, content)
         if error:
-            flash(error, 'danger')
-        else:
-            # Notify receiver
-            order = Order.query.get(order_id)
-            receiver_id = order.buyer_id if current_user.id == order.seller_id else order.seller_id
-            notification_manager.create_notification(receiver_id, "New Message", f"New message from {current_user.username}", url_for('user.order_detail', order_id=order_id))
+            return jsonify({'success': False, 'error': error}), 400
             
+        # Emit via socket manually if not using events.py hooks
+        from extensions import socketio
+        from flask_socketio import emit
+        socketio.emit('new_message', {
+            'order_id': order_id,
+            'sender_id': current_user.id,
+            'content': content,
+            'sender_name': current_user.username,
+            'time_display': 'Just now'
+        }, room=f'order_{order_id}')
+        
+        return jsonify({'success': True})
+    return jsonify({'success': False, 'error': 'No content'}), 400
+
+
+@user_bp.route('/order/<int:order_id>/chat/delete', methods=['POST'])
+@login_required
+def delete_order_chat(order_id):
+    """Delete all messages in the order chat (Provider only)"""
+    success, error = chat_manager.delete_chat(order_id, current_user.id)
+    if success:
+        flash('Chat history deleted successfully.', 'success')
+    else:
+        flash(f'Error: {error}', 'danger')
     return redirect(url_for('user.order_detail', order_id=order_id))
 
 
