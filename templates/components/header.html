@@ -214,10 +214,11 @@
                                 <li><a class="dropdown-item" href="{{ url_for('user.issued_certificates') }}">
                                         <i class="bi bi-patch-check me-2 text-warning"></i>Issued Certificates</a>
                                 </li>
-                                {% endif %}
+                                {% else %}
                                 <li><a class="dropdown-item" href="{{ url_for('user.my_certificates') }}">
                                         <i class="bi bi-award me-2 text-primary"></i>My Certificates</a>
                                 </li>
+                                {% endif %}
                                 <li><a class="dropdown-item" href="{{ url_for('user.wallet') }}">
                                         <i class="bi bi-wallet2 me-2 text-info"></i>My Wallet</a>
                                 </li>

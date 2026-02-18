@@ -24,6 +24,9 @@
                     <tr>
                         <th class="ps-4 py-3 border-0">Certificate ID</th>
                         <th class="py-3 border-0">Student</th>
+                        {% if current_user.is_admin() %}
+                        <th class="py-3 border-0">Issued By</th>
+                        {% endif %}
                         <th class="py-3 border-0">Skill / Course</th>
                         <th class="py-3 border-0">Date Issued</th>
                         <th class="py-3 border-0 text-center">Order</th>
@@ -46,6 +49,17 @@
                                 <span>{{ cert.student.full_name or cert.student.username }}</span>
                             </div>
                         </td>
+                        {% if current_user.is_admin() %}
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <div class="avatar-sm me-2">
+                                    <img src="{{ cert.provider.get_avatar_url() }}" class="rounded-circle"
+                                        style="width: 32px; height: 32px; object-fit: cover;">
+                                </div>
+                                <span class="small">{{ cert.provider.full_name or cert.provider.username }}</span>
+                            </div>
+                        </td>
+                        {% endif %}
                         <td>
                             <span class="fw-medium">{{ cert.skill_name }}</span>
                         </td>
@@ -74,7 +88,7 @@
                     {% endfor %}
                     {% else %}
                     <tr>
-                        <td colspan="6" class="text-center py-5">
+                        <td colspan="{% if current_user.is_admin() %}7{% else %}6{% endif %}" class="text-center py-5">
                             <div class="mb-3">
                                 <i class="bi bi-journal-check text-secondary opacity-25" style="font-size: 4rem;"></i>
                             </div>

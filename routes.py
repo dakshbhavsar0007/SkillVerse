@@ -1650,13 +1650,19 @@ def my_certificates():
 @user_bp.route('/issued-certificates')
 @login_required
 def issued_certificates():
-    """Page listing all certificates issued by the current provider."""
+    """Page listing all certificates issued by the current provider or all for admin."""
     # Only providers or admins can see this
     if current_user.user_type != 'provider' and not current_user.is_admin():
         flash('Access denied.', 'danger')
         return redirect(url_for('user.dashboard'))
         
-    certificates = Certificate.query.filter_by(provider_id=current_user.id).order_by(Certificate.issued_at.desc()).all()
+    if current_user.is_admin():
+        # Admin sees everything
+        certificates = Certificate.query.order_by(Certificate.issued_at.desc()).all()
+    else:
+        # Provider sees only what they issued
+        certificates = Certificate.query.filter_by(provider_id=current_user.id).order_by(Certificate.issued_at.desc()).all()
+        
     return render_template('user/issued_certificates.html', certificates=certificates)
 
 
