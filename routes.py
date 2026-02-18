@@ -268,86 +268,74 @@ def privacy():
 # ============================================================================
 # CERTIFICATE VERIFICATION ROUTES (public — no login required)
 #
-# Supports two input formats:
-#   1. Certificate ID only  →  "CERT-A1B2C3"          (search by ID)
-#   2. QR token             →  "SV:CERT-A1B2C3:hash"  (cryptographic verify)
+# Two flows:
 #
-# Both go through POST /verify/check — not a GET URL, so not crawlable.
+#   1. QR scan  → phone opens GET /verify?cert_id=CERT-XXX&hash=abc123
+#                 Page auto-verifies via hash → shows green "Cryptographically Verified" badge
+#
+#   2. Manual   → user visits /verify, types a Certificate ID
+#                 JS POSTs to /verify/check → shows blue "Verified by ID" badge
 # ============================================================================
 
 @main_bp.route('/verify')
 def verify_certificate_page():
-    """Public certificate verification page."""
-    return render_template('verify_certificate.html')
+    """
+    Public verification page.
+    - Plain visit  → shows empty search form
+    - QR scan      → ?cert_id=CERT-XXX&hash=abc123 passed to template,
+                      JS auto-triggers hash verification on load
+    """
+    cert_id    = request.args.get('cert_id', '').strip().upper()
+    cert_hash  = request.args.get('hash',    '').strip()
+    return render_template('verify_certificate.html',
+                           qr_cert_id=cert_id,
+                           qr_hash=cert_hash)
 
 
 @main_bp.route('/verify/check', methods=['POST'])
 def verify_certificate_check():
     """
-    Unified certificate verification endpoint.
+    Unified JSON verification endpoint — called by page JS.
 
-    Accepts JSON  →  {"token": "CERT-XXXX"}  or  {"token": "SV:CERT-XXXX:hash"}
-    Accepts form  →  token=CERT-XXXX         or  token=SV:CERT-XXXX:hash
+    Accepts JSON body:
+        {"cert_id": "CERT-XXX"}                  → ID-only lookup
+        {"cert_id": "CERT-XXX", "hash": "abc…"}  → hash-verified (QR flow)
 
-    Returns JSON:
-        {"valid": true,  "verified_by": "id"|"hash",  ...cert fields}
+    Returns:
+        {"valid": true,  "verified_by": "id"|"hash", ...cert fields}
         {"valid": false, "error": "..."}
-
-    POST-only — never indexed by search engines.
     """
     from certificate_generator import generate_hash
 
-    # ── 1. Extract input ──────────────────────────────────────────────────
-    if request.is_json:
-        data  = request.get_json(silent=True) or {}
-        token = data.get('token', '').strip()
-    else:
-        token = request.form.get('token', '').strip()
+    data    = request.get_json(silent=True) or {}
+    cert_id = data.get('cert_id', '').strip().upper()
+    scanned = data.get('hash',    '').strip()
 
-    if not token:
-        return jsonify({'valid': False, 'error': 'No input provided.'}), 400
+    if not cert_id:
+        return jsonify({'valid': False, 'error': 'No Certificate ID provided.'}), 400
 
-    # ── 2. Detect format ──────────────────────────────────────────────────
-    parts = token.split(':')
-    is_qr_token = (len(parts) == 3 and parts[0] == 'SV')
-
-    if is_qr_token:
-        # Format: SV:<cert_id>:<sha256_hash>
-        _, cert_id, scanned_hash = parts
-        if not cert_id or len(scanned_hash) != 64:
-            return jsonify({'valid': False, 'error': 'Malformed QR token.'}), 400
-    else:
-        # Format: CERT-XXXXXX  (plain ID search)
-        cert_id      = token.upper()
-        scanned_hash = None
-
-    cert_id = cert_id.upper().strip()
-
-    # ── 3. Lookup certificate ─────────────────────────────────────────────
     cert = Certificate.query.filter_by(cert_id=cert_id).first()
     if not cert:
         return jsonify({'valid': False, 'error': 'Certificate not found.'}), 404
 
-    # ── 4. Hash check (only for QR token) ────────────────────────────────
     student  = User.query.get(cert.student_id)
     provider = User.query.get(cert.provider_id)
-
     student_name  = (student.full_name  or student.username)  if student  else 'Unknown'
     provider_name = (provider.full_name or provider.username) if provider else 'Unknown'
 
+    # Hash verification (QR flow)
     verified_by = 'id'
-    if is_qr_token:
-        expected_hash = generate_hash(
-            student_name, cert.skill_name, str(cert.cert_id), str(cert.order_id)
-        )
-        if scanned_hash != expected_hash:
-            return jsonify({'valid': False, 'error': 'Hash mismatch — certificate may be tampered.'}), 403
+    if scanned:
+        expected = generate_hash(student_name, cert.skill_name,
+                                 str(cert.cert_id), str(cert.order_id))
+        if scanned != expected:
+            return jsonify({'valid': False,
+                            'error': 'Hash mismatch — certificate may be tampered.'}), 403
         verified_by = 'hash'
 
-    # ── 5. Return verified details ────────────────────────────────────────
     return jsonify({
         'valid'         : True,
-        'verified_by'   : verified_by,   # 'id' or 'hash'
+        'verified_by'   : verified_by,
         'cert_id'       : cert.cert_id,
         'student_name'  : student_name,
         'provider_name' : provider_name,

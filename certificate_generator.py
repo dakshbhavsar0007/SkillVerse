@@ -122,16 +122,11 @@ def draw_certificate(student_name, skill_name,
     if completion_date is None:
         completion_date = datetime.now().strftime("%d %B %Y")
 
-    cert_hash = generate_hash(student_name, skill_name, cert_id, order_id)
-
-    # QR encodes a compact signed token (not a public URL).
-    # Format:  SV:<cert_id>:<sha256_hash>
-    # Your /verify route decodes this token server-side.
-    # Because there is no URL, search engines cannot crawl or index it.
-    qr_token = f"SV:{cert_id}:{cert_hash}"
+    cert_hash  = generate_hash(student_name, skill_name, cert_id, order_id)
+    verify_url = f"https://skillverse-oh9z.onrender.com/verify?cert_id={cert_id}&hash={cert_hash}"
 
     QR = 240
-    qr_img = qrcode.make(qr_token).resize((QR, QR))
+    qr_img = qrcode.make(verify_url).resize((QR, QR))
 
     img = Image.new("RGB", (W, H), NAVY)
     _gradient_bg(img)
@@ -317,7 +312,7 @@ def draw_certificate(student_name, skill_name,
     # ZONE 5 – HASH FOOTER
     # ════════════════════════════════════════════════════════
     hash_y = qr_y + QR + pad + 50
-    _cx(draw, f"Token: SV:{cert_id}  ·  Hash: {cert_hash[:40]}...", hash_y, f_tiny, GOLD_FAINT)
+    _cx(draw, f"Verification Hash:  {cert_hash[:52]}...", hash_y, f_tiny, GOLD_FAINT)
 
     return img
 
