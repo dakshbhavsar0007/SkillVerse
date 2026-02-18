@@ -130,6 +130,12 @@
                             <a class="nav-link px-3" href="{{ url_for('user.chats') }}">Chats</a>
                         </li>
                         {% endif %}
+                        <li class="nav-item">
+                            <a class="nav-link px-3 d-flex align-items-center gap-1" href="{{ url_for('main.verify_certificate_page') }}">
+                                <i class="bi bi-patch-check-fill text-warning" style="font-size:0.85rem;"></i>
+                                Verify
+                            </a>
+                        </li>
                     </ul>
 
                     <div class="d-flex align-items-center gap-3 mt-3 mt-lg-0">
