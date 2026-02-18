@@ -221,11 +221,11 @@
             {% endif %}
 
             {% if order.certificate %}
-            <div class="mt-3 p-3 bg-white border border-primary rounded-3 shadow-sm text-start"
-                style="border-color: #1a1a4e !important;">
+            <div class="mt-3 p-3 rounded-3 shadow-sm text-start"
+                style="border: 1px solid var(--accent-color); background-color: var(--workroom-bg);">
                 <div class="d-flex align-items-center mb-2">
                     <span class="fs-5 me-2">🎓</span>
-                    <h6 class="mb-0 fw-bold" style="color: #1a1a4e;">Certificate of Completion Issued</h6>
+                    <h6 class="mb-0 fw-bold">Certificate of Completion Issued</h6>
                 </div>
                 <div class="small text-muted mb-2">
                     <div>Certificate ID: <span class="fw-bold text-dark">{{ order.certificate.cert_id }}</span></div>
@@ -350,13 +350,13 @@
 
                 <!-- Certificate Section (For Buyer/Seller) -->
                 {% if order.certificate and (current_user.id == order.buyer_id or current_user.id == order.seller_id) %}
-                <div class="card-footer bg-white p-4 border-top">
+                <div class="card-footer p-4 border-top">
                     <div class="text-center">
                         <div
                             class="d-inline-flex align-items-center justify-content-center bg-warning bg-opacity-10 text-warning rounded-circle p-3 mb-3">
                             <i class="bi bi-award-fill fs-2"></i>
                         </div>
-                        <h6 class="fw-bold mb-1" style="color: #1a1a4e;">Certificate Issued</h6>
+                        <h6 class="fw-bold mb-1">Certificate Issued</h6>
                         <p class="text-muted small mb-3">ID: {{ order.certificate.cert_id }} • {{
                             order.certificate.issued_at.strftime('%b %d, %Y') }}</p>
 
