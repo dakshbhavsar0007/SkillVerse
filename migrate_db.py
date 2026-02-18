@@ -39,6 +39,23 @@ def run_migrations(app):
             else:
                 print("✔ wallet_balance column already exists")
 
+            # ── 1.5 Add pending_approval to services ────────────────────────
+            result = conn.execute(text("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = 'services'
+                AND column_name = 'pending_approval'
+            """))
+            if result.fetchone() is None:
+                conn.execute(text("""
+                    ALTER TABLE services
+                    ADD COLUMN pending_approval BOOLEAN DEFAULT FALSE
+                """))
+                conn.commit()
+                print("✅ Added pending_approval column to services table")
+            else:
+                print("✔ pending_approval column already exists")
+
             # ── 2. Create transactions table ─────────────────────────────────
             conn.execute(text("""
                 CREATE TABLE IF NOT EXISTS transactions (
