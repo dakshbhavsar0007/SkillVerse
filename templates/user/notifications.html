@@ -84,10 +84,22 @@
                             </p>
 
                             {% if notification.link %}
+                            {% if 'certificate' in notification.link or 'download' in notification.link %}
+                            <a href="{{ notification.link }}"
+                                class="btn btn-sm btn-soft-success rounded-pill px-3 fw-medium">
+                                <i class="bi bi-download me-1"></i>Download Certificate
+                            </a>
+                            {% elif 'order_detail' in notification.link or 'order' in notification.link %}
                             <a href="{{ notification.link }}"
                                 class="btn btn-sm btn-soft-primary rounded-pill px-3 fw-medium">
-                                Chat
+                                <i class="bi bi-bag me-1"></i>View Order
                             </a>
+                            {% else %}
+                            <a href="{{ notification.link }}"
+                                class="btn btn-sm btn-soft-primary rounded-pill px-3 fw-medium">
+                                <i class="bi bi-chat-dots me-1"></i>Chat
+                            </a>
+                            {% endif %}
                             {% endif %}
                         </div>
 
@@ -191,6 +203,17 @@
     .btn-soft-primary:hover {
         background-color: rgba(13, 110, 253, 0.2);
         color: #0d6efd;
+    }
+
+    .btn-soft-success {
+        background-color: rgba(25, 135, 84, 0.1);
+        color: #198754;
+        border: none;
+    }
+
+    .btn-soft-success:hover {
+        background-color: rgba(25, 135, 84, 0.2);
+        color: #198754;
     }
 
     /* List Item Interactions */
