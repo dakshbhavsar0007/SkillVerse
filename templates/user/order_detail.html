@@ -245,7 +245,7 @@
 
     <div class="row g-4">
         <!-- Sidebar: Details -->
-        <div class="col-lg-4 order-lg-2">
+        <div class="col-lg-4 order-2 order-lg-2">
             <!-- Project Card -->
             <div class="workroom-card mb-4 fade-in-up delay-100 position-sticky" style="top: 100px;">
 
@@ -327,8 +327,9 @@
                         </button>
                     </form>
                     {% endif %}
+                    {% endif %} {# end order.status == 'pending' #}
                 </div>
-                {% endif %}
+                {% endif %} {# end seller_id check #}
 
                 <!-- Seller Completion Action (Modified) -->
                 {% if current_user.id == order.seller_id and order.status == 'in_progress' %}
@@ -373,7 +374,7 @@
 
 
         <!-- Chat Area -->
-        <div class="col-lg-8 order-lg-1">
+        <div class="col-lg-8 order-1 order-lg-1">
             <div class="workroom-card fade-in-up delay-200 chat-container">
                 <div class="project-card-header d-flex justify-content-between align-items-center">
                     <div class="d-flex align-items-center">
@@ -555,7 +556,6 @@
         </div>
     </div>
 </div>
-{% endif %} <!-- Closing elusive unclosed if block -->
 {% endblock %}
 
 {% block extra_js %}
