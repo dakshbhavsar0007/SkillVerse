@@ -123,7 +123,7 @@ def draw_certificate(student_name, skill_name,
         completion_date = datetime.now().strftime("%d %B %Y")
 
     cert_hash  = generate_hash(student_name, skill_name, cert_id, order_id)
-    verify_url = f"https://skillverse.in/verify?cert_id={cert_id}&hash={cert_hash}"
+    verify_url = f"https://skillverse-oh9z.onrender.com/verify?cert_id={cert_id}&hash={cert_hash}"
 
     QR = 240
     qr_img = qrcode.make(verify_url).resize((QR, QR))
