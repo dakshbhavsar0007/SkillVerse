@@ -250,6 +250,51 @@ def privacy():
 
 
 # ============================================================================
+# CERTIFICATE VERIFICATION ROUTES (public — no login required)
+# ============================================================================
+
+@main_bp.route('/verify')
+def verify_certificate_page():
+    """Public certificate verification page"""
+    return render_template('verify_certificate.html', cert_id=None)
+
+
+@main_bp.route('/verify/<cert_id>')
+def verify_certificate_prefilled(cert_id):
+    """Verification page with cert ID pre-filled and auto-verified.
+    Shareable links: /verify/CERT-A1B2C3
+    """
+    return render_template('verify_certificate.html', cert_id=cert_id)
+
+
+@main_bp.route('/verify/api/<cert_id>')
+def verify_certificate_api(cert_id):
+    """JSON API called by the verify page's JS fetch().
+    Returns certificate details if valid, or {'valid': False} if not found.
+    """
+    cert = Certificate.query.filter_by(cert_id=cert_id.upper().strip()).first()
+
+    if not cert:
+        return jsonify({'valid': False})
+
+    student  = User.query.get(cert.student_id)
+    provider = User.query.get(cert.provider_id)
+
+    student_name  = (student.full_name  or student.username)  if student  else 'Unknown'
+    provider_name = (provider.full_name or provider.username) if provider else 'Unknown'
+
+    return jsonify({
+        'valid'         : True,
+        'cert_id'       : cert.cert_id,
+        'student_name'  : student_name,
+        'provider_name' : provider_name,
+        'skill_name'    : cert.skill_name,
+        'issued_at'     : cert.issued_at.strftime('%B %d, %Y'),
+        'order_id'      : cert.order_id,
+    })
+
+
+# ============================================================================
 # AUTHENTICATION ROUTES
 # ============================================================================
 
@@ -2735,5 +2780,3 @@ def service_autocomplete_api():
         return jsonify({'success': True, 'suggestions': suggestions})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
-
-

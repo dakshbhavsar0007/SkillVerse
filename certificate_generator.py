@@ -159,11 +159,11 @@ def generate_certificate(student_name: str,
     _draw_centered_text(draw, f"Certificate ID: {cert_id}", CERT_Y, small_font, DARK_GREY)
     _draw_centered_text(draw, f"Order #{order_id}", ORDER_Y, small_font, DARK_GREY)
 
-    # ── Save as PNG in memory, then embed in PDF ──────────────────────────
+    # ── Save as temp PNG file, then embed in PDF ────────────────────────
+    # NOTE: ReportLab's drawImage requires a file path, not a BytesIO buffer
     img_rgb = img.convert('RGB')
-    img_buffer = io.BytesIO()
-    img_rgb.save(img_buffer, format='PNG', dpi=(300, 300))
-    img_buffer.seek(0)
+    tmp_png_path = os.path.join(CERTS_FOLDER, f"_tmp_{cert_id}.png")
+    img_rgb.save(tmp_png_path, format='PNG', dpi=(300, 300))
 
     # ── Create PDF (A4 landscape) ─────────────────────────────────────────
     pdf_filename = f"certificate_order{order_id}_{cert_id}.pdf"
@@ -178,7 +178,7 @@ def generate_certificate(student_name: str,
 
     # Draw the certificate image filling the whole A4 landscape page
     c.drawImage(
-        img_buffer,
+        tmp_png_path,
         0, 0,
         width=page_w,
         height=page_h,
@@ -187,6 +187,13 @@ def generate_certificate(student_name: str,
     )
 
     c.save()
+
+    # ── Clean up temp PNG ─────────────────────────────────────────────────
+    try:
+        os.remove(tmp_png_path)
+    except OSError:
+        pass
+
     return pdf_path
 
 
