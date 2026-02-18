@@ -222,9 +222,11 @@
                                 <li><a class="dropdown-item" href="{{ url_for('user.wallet') }}">
                                         <i class="bi bi-wallet2 me-2 text-info"></i>My Wallet</a>
                                 </li>
+                                {% if not current_user.is_admin() %}
                                 <li><a class="dropdown-item" href="{{ url_for('user.orders') }}">
                                         <i class="bi bi-bag me-2 text-success"></i>My Orders</a>
                                 </li>
+                                {% endif %}
                                 <li><a class="dropdown-item" href="{{ url_for('user.transactions') }}">
                                         <i class="bi bi-clock-history me-2 text-secondary"></i>Transactions</a>
                                 </li>

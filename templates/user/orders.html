@@ -120,7 +120,7 @@
 
                                 <!-- Price -->
                                 <div class="col-md-1 text-md-end">
-                                    <span class="fw-bold text-heading">₹{{ "%.0f"|format(order.service.price) }}</span>
+                                    <span class="fw-bold text-heading">₹{{ "%.0f"|format(order.total_price) }}</span>
                                 </div>
                             </div>
                         </a>
@@ -216,7 +216,7 @@
 
                                 <!-- Price -->
                                 <div class="col-md-1 text-md-end">
-                                    <span class="fw-bold text-success">+₹{{ "%.0f"|format(order.service.price) }}</span>
+                                    <span class="fw-bold text-success">+₹{{ "%.0f"|format(order.total_price) }}</span>
                                 </div>
                             </div>
                         </a>
@@ -274,7 +274,11 @@
     }
 
     .text-heading {
-        color: var(--bs-body-color);
+        color: var(--text-primary, var(--bs-body-color));
+    }
+
+    h6.text-heading {
+        color: var(--text-primary, var(--bs-body-color)) !important;
     }
 
     .text-xs {

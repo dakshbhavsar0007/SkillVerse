@@ -23,6 +23,8 @@
     --shadow-inner: inset 0 1px 0 rgba(255, 255, 255, 0.8);
 
     --accent-blue: #2563EB;
+    --accent-indigo: #4F46E5;
+    --accent-lavender: #7C3AED;
 
     --hero-mesh:
         radial-gradient(at 0% 0%, hsla(253, 16%, 7%, 0.04) 0, transparent 50%),
