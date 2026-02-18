@@ -16,7 +16,7 @@ Author: SkillVerse Team
 Purpose: Handle HTTP requests and responses
 """
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify, abort, send_file
 from datetime import datetime, timezone, timedelta
 from flask_login import login_user, logout_user, login_required, current_user
 from functools import wraps
@@ -267,38 +267,79 @@ def privacy():
 
 # ============================================================================
 # CERTIFICATE VERIFICATION ROUTES (public — no login required)
+#
+# QR codes now encode a private signed token, NOT a public URL:
+#   Format:  SV:<cert_id>:<sha256_hash>
+#
+# Because the QR contains plain text (not a URL), scanners do not open
+# a browser, and search engines cannot crawl or index the endpoint.
+# Users paste/submit the token into the verify form below, or a mobile
+# app POSTs it automatically after scanning.
 # ============================================================================
 
 @main_bp.route('/verify')
 def verify_certificate_page():
-    """Public certificate verification page"""
-    return render_template('verify_certificate.html', cert_id=None)
+    """Public certificate verification page — token entry form."""
+    return render_template('verify_certificate.html')
 
 
-@main_bp.route('/verify/<cert_id>')
-def verify_certificate_prefilled(cert_id):
-    """Verification page with cert ID pre-filled and auto-verified.
-    Shareable links: /verify/CERT-A1B2C3
+@main_bp.route('/verify/check', methods=['POST'])
+def verify_certificate_check():
     """
-    return render_template('verify_certificate.html', cert_id=cert_id)
+    Validate a certificate token submitted from the verify form or a mobile app.
 
+    Accepts JSON  →  {"token": "SV:CERT-XXXX:abcdef..."}
+    Accepts form  →  token=SV:CERT-XXXX:abcdef...
 
-@main_bp.route('/verify/api/<cert_id>')
-def verify_certificate_api(cert_id):
-    """JSON API called by the verify page's JS fetch().
-    Returns certificate details if valid, or {'valid': False} if not found.
+    Returns JSON:
+        {"valid": true,  "cert": {...}}
+        {"valid": false, "error": "..."}
+
+    POST-only: not indexable by search engines.
     """
-    cert = Certificate.query.filter_by(cert_id=cert_id.upper().strip()).first()
+    from certificate_generator import generate_hash
 
+    # ── 1. Extract token ──────────────────────────────────────────────────
+    if request.is_json:
+        data  = request.get_json(silent=True) or {}
+        token = data.get('token', '').strip()
+    else:
+        token = request.form.get('token', '').strip()
+
+    if not token:
+        return jsonify({'valid': False, 'error': 'No token provided.'}), 400
+
+    # ── 2. Parse token  SV:<cert_id>:<sha256_hash> ───────────────────────
+    parts = token.split(':')
+    if len(parts) != 3 or parts[0] != 'SV':
+        return jsonify({'valid': False, 'error': 'Invalid token format.'}), 400
+
+    _, cert_id, scanned_hash = parts
+    if not cert_id or len(scanned_hash) != 64:
+        return jsonify({'valid': False, 'error': 'Malformed token fields.'}), 400
+
+    cert_id = cert_id.upper().strip()
+
+    # ── 3. Lookup certificate ─────────────────────────────────────────────
+    cert = Certificate.query.filter_by(cert_id=cert_id).first()
     if not cert:
-        return jsonify({'valid': False})
+        return jsonify({'valid': False, 'error': 'Certificate not found.'}), 404
 
+    # ── 4. Re-compute hash and compare ───────────────────────────────────
     student  = User.query.get(cert.student_id)
     provider = User.query.get(cert.provider_id)
 
     student_name  = (student.full_name  or student.username)  if student  else 'Unknown'
     provider_name = (provider.full_name or provider.username) if provider else 'Unknown'
 
+    expected_hash = generate_hash(
+        student_name, cert.skill_name, cert.cert_id, cert.order_id
+    )
+
+    if scanned_hash != expected_hash:
+        return jsonify({'valid': False, 'error': 'Hash mismatch — certificate may be tampered.'}), 403
+
+    # ── 5. Return verified details ────────────────────────────────────────
     return jsonify({
         'valid'         : True,
         'cert_id'       : cert.cert_id,
@@ -308,6 +349,167 @@ def verify_certificate_api(cert_id):
         'issued_at'     : cert.issued_at.strftime('%B %d, %Y'),
         'order_id'      : cert.order_id,
     })
+
+
+# ============================================================================
+# CERTIFICATE GENERATION & DOWNLOAD ROUTES
+# ============================================================================
+
+@user_bp.route('/order/<int:order_id>/complete', methods=['POST'])
+@login_required
+def complete_order(order_id):
+    """
+    Called when the PROVIDER clicks 'Mark as Complete'.
+    - Updates order status to 'completed'
+    - Generates a PDF certificate for the buyer
+    - Saves certificate record to DB
+    - Sends in-app notification (and optional email) to buyer
+    """
+    order = Order.query.get_or_404(order_id)
+
+    # Only the seller (provider) can mark complete
+    if current_user.id != order.seller_id:
+        abort(403)
+
+    if order.status == 'completed':
+        flash('Order is already marked as complete.', 'info')
+        return redirect(url_for('user.order_detail', order_id=order_id))
+
+    # ── 1. Update order status ────────────────────────────────────────────
+    order.update_status('completed')
+    db.session.commit()
+
+    # ── 2. Generate certificate ───────────────────────────────────────────
+    try:
+        student  = User.query.get(order.buyer_id)
+        provider = User.query.get(order.seller_id)
+        service  = order.service
+
+        cert_id  = generate_cert_id()
+
+        pdf_path = generate_certificate(
+            student_name  = student.full_name or student.username,
+            skill_name    = service.title,
+            provider_name = provider.full_name or provider.username,
+            order_id      = order.id,
+            cert_id       = cert_id,
+        )
+
+        # ── 3. Save cert record to DB ─────────────────────────────────────
+        cert = Certificate(
+            cert_id      = cert_id,
+            order_id     = order.id,
+            student_id   = order.buyer_id,
+            provider_id  = order.seller_id,
+            skill_name   = service.title,
+            pdf_filename = os.path.basename(pdf_path),
+        )
+        db.session.add(cert)
+        db.session.commit()
+
+        # ── 4. Notify the buyer ───────────────────────────────────────────
+        notification = Notification(
+            user_id = order.buyer_id,
+            title   = '🎓 Your Certificate is Ready!',
+            message = (f'Congratulations! You have completed "{service.title}". '
+                       f'Your certificate ({cert_id}) is ready to download.'),
+            link    = url_for('user.download_certificate', cert_id=cert_id),
+        )
+        db.session.add(notification)
+        db.session.commit()
+
+        # ── 5. (Optional) send email ──────────────────────────────────────
+        try:
+            _send_certificate_email(student, cert, pdf_path)
+        except Exception as mail_err:
+            print(f"[Certificate] Email failed (non-fatal): {mail_err}")
+
+        flash(f'Order marked complete! Certificate {cert_id} issued to {student.username}.', 'success')
+
+    except Exception as e:
+        print(f"[Certificate] Generation failed: {e}")
+        flash('Order marked complete, but certificate generation failed. '
+              'Please contact support.', 'warning')
+
+    return redirect(url_for('user.order_detail', order_id=order_id))
+
+
+@user_bp.route('/certificate/<cert_id>/download')
+@login_required
+def download_certificate(cert_id):
+    """
+    Serves the certificate PDF.
+    Only the student (buyer), provider, or admin can download it.
+    """
+    from flask import send_file
+    cert = Certificate.query.filter_by(cert_id=cert_id).first_or_404()
+
+    allowed = (
+        current_user.id == cert.student_id or
+        current_user.id == cert.provider_id or
+        current_user.is_admin()
+    )
+    if not allowed:
+        abort(403)
+
+    certs_dir = os.path.join(current_app.root_path, 'static', 'certificates')
+    pdf_path  = os.path.join(certs_dir, cert.pdf_filename)
+
+    if not os.path.exists(pdf_path):
+        abort(404)
+
+    return send_file(
+        pdf_path,
+        as_attachment=True,
+        download_name=f"SkillVerse_Certificate_{cert.cert_id}.pdf",
+        mimetype='application/pdf'
+    )
+
+
+@user_bp.route('/api/certificate/order/<int:order_id>')
+@login_required
+def get_order_certificate(order_id):
+    """Returns certificate info for an order as JSON (for frontend use)."""
+    cert = Certificate.query.filter_by(order_id=order_id).first()
+    if not cert:
+        return jsonify({'exists': False})
+    return jsonify({
+        'exists'      : True,
+        'cert_id'     : cert.cert_id,
+        'issued_at'   : cert.issued_at.strftime('%B %d, %Y'),
+        'download_url': url_for('user.download_certificate', cert_id=cert.cert_id),
+    })
+
+
+def _send_certificate_email(student, cert, pdf_path):
+    """Send certificate download link to the student via email."""
+    from flask_mail import Mail, Message as MailMessage
+    mail = Mail(current_app)
+    download_url = url_for('user.download_certificate',
+                           cert_id=cert.cert_id, _external=True)
+    msg = MailMessage(
+        subject    = f'🎓 Your SkillVerse Certificate - {cert.skill_name}',
+        sender     = current_app.config['MAIL_DEFAULT_SENDER'],
+        recipients = [student.email],
+        html       = f"""
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:auto">
+            <h2 style="color:#1a1a4e">Congratulations, {student.full_name or student.username}! 🎉</h2>
+            <p>You have successfully completed <strong>{cert.skill_name}</strong>.</p>
+            <p>Your Certificate ID is: <strong>{cert.cert_id}</strong></p>
+            <p style="margin:30px 0">
+                <a href="{download_url}"
+                   style="background:#B8860B;color:white;padding:14px 28px;
+                          border-radius:6px;text-decoration:none;font-weight:bold">
+                    Download Your Certificate
+                </a>
+            </p>
+            <p style="color:#666;font-size:12px">
+                Issued on {cert.issued_at.strftime('%B %d, %Y')} by SkillVerse Platform.
+            </p>
+        </div>
+        """
+    )
+    mail.send(msg)
 
 
 # ============================================================================
