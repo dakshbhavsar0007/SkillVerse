@@ -125,8 +125,18 @@ def draw_certificate(student_name, skill_name,
     cert_hash  = generate_hash(student_name, skill_name, cert_id, order_id)
     verify_url = f"https://skillverse-oh9z.onrender.com/verify?cert_id={cert_id}&hash={cert_hash}"
 
-    QR = 240
-    qr_img = qrcode.make(verify_url).resize((QR, QR))
+    # ── QR: high error-correction so phones open it as a URL, not plain text ──
+    QR = 300  # Larger QR = easier to scan from phone cameras
+    qr = qrcode.QRCode(
+        version          = None,
+        error_correction = qrcode.constants.ERROR_CORRECT_H,
+        box_size         = 10,
+        border           = 2,
+    )
+    qr.add_data(verify_url)
+    qr.make(fit=True)
+    qr_img = qr.make_image(fill_color="black", back_color="white").convert("RGB")
+    qr_img = qr_img.resize((QR, QR), resample=0)  # NEAREST keeps pixels sharp
 
     img = Image.new("RGB", (W, H), NAVY)
     _gradient_bg(img)
