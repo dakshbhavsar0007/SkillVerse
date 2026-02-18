@@ -131,7 +131,8 @@
                         </li>
                         {% endif %}
                         <li class="nav-item">
-                            <a class="nav-link px-3 d-flex align-items-center gap-1" href="{{ url_for('main.verify_certificate_page') }}">
+                            <a class="nav-link px-3 d-flex align-items-center gap-1"
+                                href="{{ url_for('main.verify_certificate_page') }}">
                                 <i class="bi bi-patch-check-fill text-warning" style="font-size:0.85rem;"></i>
                                 Verify
                             </a>
@@ -209,16 +210,28 @@
                                 <li><a class="dropdown-item"
                                         href="{{ url_for('user.profile', username=current_user.username) }}">Profile</a>
                                 </li>
+                                {% if current_user.user_type == 'provider' or current_user.is_admin() %}
+                                <li><a class="dropdown-item" href="{{ url_for('user.issued_certificates') }}">
+                                        <i class="bi bi-patch-check me-2 text-warning"></i>Issued Certificates</a>
+                                </li>
+                                {% endif %}
+                                <li><a class="dropdown-item" href="{{ url_for('user.my_certificates') }}">
+                                        <i class="bi bi-award me-2 text-primary"></i>My Certificates</a>
+                                </li>
                                 <li><a class="dropdown-item" href="{{ url_for('user.wallet') }}">
-                                        <i class="bi bi-wallet2 me-2 text-primary"></i>My Wallet</a>
+                                        <i class="bi bi-wallet2 me-2 text-info"></i>My Wallet</a>
                                 </li>
                                 <li><a class="dropdown-item" href="{{ url_for('user.orders') }}">
                                         <i class="bi bi-bag me-2 text-success"></i>My Orders</a>
                                 </li>
                                 <li><a class="dropdown-item" href="{{ url_for('user.transactions') }}">
-                                        <i class="bi bi-clock-history me-2 text-info"></i>Transactions</a>
+                                        <i class="bi bi-clock-history me-2 text-secondary"></i>Transactions</a>
                                 </li>
+
                                 {% if current_user.user_type == 'provider' %}
+                                <li>
+                                    <hr class="dropdown-divider">
+                                </li>
                                 <li><a class="dropdown-item" href="{{ url_for('availability.manage') }}">Manage
                                         Availability</a></li>
                                 <li><a class="dropdown-item" href="{{ url_for('service.create') }}">Sell Skills</a></li>

@@ -1639,6 +1639,28 @@ def get_order_certificate(order_id):
     })
 
 
+@user_bp.route('/my-certificates')
+@login_required
+def my_certificates():
+    """Page listing all certificates earned by the current user."""
+    certificates = Certificate.query.filter_by(student_id=current_user.id).order_by(Certificate.issued_at.desc()).all()
+    return render_template('user/my_certificates.html', certificates=certificates)
+
+
+@user_bp.route('/issued-certificates')
+@login_required
+def issued_certificates():
+    """Page listing all certificates issued by the current provider."""
+    # Only providers or admins can see this
+    if current_user.user_type != 'provider' and not current_user.is_admin():
+        flash('Access denied.', 'danger')
+        return redirect(url_for('user.dashboard'))
+        
+    certificates = Certificate.query.filter_by(provider_id=current_user.id).order_by(Certificate.issued_at.desc()).all()
+    return render_template('user/issued_certificates.html', certificates=certificates)
+
+
+
 def _send_certificate_email(student, cert, pdf_path):
     """Send certificate download link to the student via email."""
     from email_utils import send_async_email, _get_default_sender
