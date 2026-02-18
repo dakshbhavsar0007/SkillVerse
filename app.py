@@ -68,6 +68,13 @@ def create_app(config_name='default'):
     oauth.init_app(app)
     compress.init_app(app)
 
+    # Initialize Cloudinary for persistent image storage
+    from cloudinary_utils import init_cloudinary
+    if init_cloudinary(app):
+        print("✅ Cloudinary initialized — images will persist across redeploys")
+    else:
+        print("⚠️  Cloudinary NOT configured — images will be stored locally (lost on redeploy)")
+
     # Performance: Cache Static Files for 1 Year
     app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 31536000
     app.config['COMPRESS_MIMETYPES'] = ['text/html', 'text/css', 'text/javascript', 'application/json', 'application/javascript']

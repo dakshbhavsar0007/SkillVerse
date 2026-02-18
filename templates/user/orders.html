@@ -216,7 +216,11 @@
 
                                 <!-- Price -->
                                 <div class="col-md-1 text-md-end">
-                                    <span class="fw-bold text-success">+₹{{ "%.0f"|format(order.total_price) }}</span>
+                                    {% if order.status == 'cancelled' %}
+                                    <span class="fw-bold text-muted text-decoration-line-through">₹{{ "%.0f"|format(order.total_price) }}</span>
+                                    {% else %}
+                                    <span class="fw-bold text-success">+₹{{ "%.0f"|format(order.total_price * 0.9)|int }}</span>
+                                    {% endif %}
                                 </div>
                             </div>
                         </a>

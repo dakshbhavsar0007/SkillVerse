@@ -1386,19 +1386,55 @@ def order_action(order_id, action):
         order.update_status('cancelled')
         db.session.commit()
 
-        # Refund the buyer's wallet
+        # Refund the buyer's wallet and reverse the seller's credit
         try:
             from payment_system import WalletManager, PaymentGateway
             gateway = PaymentGateway()
             wallet_mgr = WalletManager(payment_gateway=gateway)
+
+            # 1. Refund full amount back to buyer
             wallet_mgr.add_money(
                 user_id=order.buyer_id,
                 amount=order.total_price,
                 payment_method='refund',
                 description=f'Refund for rejected Order #{order.id} - {order.service.title}'
             )
+
+            # 2. Reverse the 90% that was credited to the seller at order placement
+            platform_fee_percent = 0.10
+            seller_amount = order.total_price * (1 - platform_fee_percent)
+            seller = User.query.get(order.seller_id)
+            seller_balance = float(seller.wallet_balance or 0.0) if seller else 0.0
+
+            if seller and seller_balance >= seller_amount:
+                wallet_mgr.deduct_money(
+                    user_id=order.seller_id,
+                    amount=seller_amount,
+                    description=f'Reversal for rejected Order #{order.id} - {order.service.title}',
+                    username=seller.username
+                )
+                print(f"[Order Reject] Reversed ₹{seller_amount:.0f} from seller (user_id: {order.seller_id})")
+            else:
+                # Seller has insufficient balance (e.g. already withdrawn) — log for admin
+                print(f"[Order Reject] WARNING: Could not reverse ₹{seller_amount:.0f} from seller "
+                      f"(user_id: {order.seller_id}). Current balance: ₹{seller_balance:.0f}. Manual review needed.")
+
+            # 3. Reverse the 10% platform fee from admin wallet
+            platform_fee_amount = order.total_price * platform_fee_percent
+            admin_user = User.query.filter_by(user_type='admin').first()
+            if admin_user:
+                admin_balance = float(admin_user.wallet_balance or 0.0)
+                if admin_balance >= platform_fee_amount:
+                    wallet_mgr.deduct_money(
+                        user_id=admin_user.id,
+                        amount=platform_fee_amount,
+                        description=f'Platform Fee Reversal for rejected Order #{order.id} - {order.service.title}',
+                        username=admin_user.username
+                    )
+                    print(f"[Order Reject] Reversed ₹{platform_fee_amount:.0f} platform fee from admin")
+
         except Exception as e:
-            print(f"[Order Reject] Wallet refund failed (non-fatal): {e}")
+            print(f"[Order Reject] Wallet refund/reversal failed (non-fatal): {e}")
 
         # Notify the buyer
         notification_manager.create_notification(
