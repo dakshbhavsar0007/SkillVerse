@@ -87,6 +87,14 @@
                     <a href="{{ url_for('admin.services') }}" class="btn-action" style="justify-content: center;">
                         <i class="bi bi-briefcase"></i>Manage Services
                     </a>
+                    <a href="{{ url_for('admin.pending_skills') }}" class="btn-action"
+                        style="justify-content: center; background: rgba(245,158,11,0.08); border-color: #f59e0b;">
+                        <i class="bi bi-hourglass-split text-warning"></i>Pending Skills
+                        {% if stats.pending_skills > 0 %}
+                        <span class="badge bg-warning text-dark ms-1" style="font-size:0.7rem;">{{ stats.pending_skills
+                            }}</span>
+                        {% endif %}
+                    </a>
                     <a href="{{ url_for('admin.categories') }}" class="btn-action" style="justify-content: center;">
                         <i class="bi bi-grid"></i>Categories
                     </a>

@@ -149,9 +149,8 @@
                                 <div class="card border-0 shadow-sm h-100 overflow-hidden group">
                                     <div class="position-relative">
                                         {% if project.image_url %}
-                                        <img src="{{ url_for('static', filename='portfolio/' + project.image_url) }}"
-                                            class="card-img-top object-fit-cover" style="height: 160px;"
-                                            alt="{{ project.title }}">
+                                        <img src="{{ project.get_image_url() }}" class="card-img-top object-fit-cover"
+                                            style="height: 160px;" alt="{{ project.title }}">
                                         {% else %}
                                         <div class="bg-light d-flex align-items-center justify-content-center"
                                             style="height: 160px;">

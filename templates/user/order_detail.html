@@ -326,6 +326,11 @@
                             <i class="bi bi-check-circle me-2"></i>Accept Order
                         </button>
                     </form>
+                    <!-- Reject Order Button -->
+                    <button class="btn btn-outline-danger w-100 py-2 rounded-pill mt-2" data-bs-toggle="modal"
+                        data-bs-target="#rejectOrderModal">
+                        <i class="bi bi-x-circle me-2"></i>Reject Order
+                    </button>
                     {% endif %}
                     {% endif %} {# end order.status == 'pending' #}
                 </div>
@@ -473,6 +478,43 @@
     </div>
 </div> <!-- Closing Row -->
 </div> <!-- Closing Container -->
+
+<!-- Reject Order Confirmation Modal -->
+<div class="modal fade" id="rejectOrderModal" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
+            <div class="modal-header border-0 bg-danger bg-opacity-10 p-4">
+                <h5 class="modal-title fw-bold text-danger"><i class="bi bi-x-circle-fill me-2"></i>Reject Order</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-4 text-center">
+                <div class="mb-4 text-danger display-1">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                </div>
+                <h4 class="fw-bold mb-2">Reject This Order?</h4>
+                <p class="text-muted mb-4 lead fs-6">
+                    This will <span class="fw-bold text-danger">cancel the order</span> and automatically
+                    <span class="fw-bold text-success">refund the buyer's payment</span> to their wallet.
+                </p>
+                <form action="{{ url_for('user.order_action', order_id=order.id, action='reject') }}" method="POST">
+                    <div class="mb-3 text-start">
+                        <label class="form-label fw-semibold small text-muted">Reason for rejection <span
+                                class="text-muted">(optional)</span></label>
+                        <textarea name="reason" class="form-control rounded-3 border-0 bg-light" rows="3"
+                            placeholder="e.g. Schedule conflict, outside my expertise..."></textarea>
+                    </div>
+                    <div class="d-grid gap-2">
+                        <button type="submit" class="btn btn-danger rounded-pill py-3 fw-bold shadow-sm">
+                            <i class="bi bi-x-circle me-2"></i>Confirm Rejection & Refund Buyer
+                        </button>
+                        <button type="button" class="btn btn-light rounded-pill py-2"
+                            data-bs-dismiss="modal">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Order Completion Confirmation Modal -->
 <div class="modal fade" id="completeOrderModal" tabindex="-1">

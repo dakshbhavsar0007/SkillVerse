@@ -31,6 +31,21 @@
         </div>
     </div>
 
+    <!-- Pending Skills Notice -->
+    {% set pending_count = current_user.services.filter_by(pending_approval=True, is_active=False).count() %}
+    {% if pending_count > 0 %}
+    <div class="container mt-3">
+        <div class="alert alert-warning d-flex align-items-center gap-3 rounded-4 border-0 shadow-sm" role="alert">
+            <i class="bi bi-hourglass-split fs-4 text-warning flex-shrink-0"></i>
+            <div>
+                <strong>{{ pending_count }} skill{{ 's' if pending_count > 1 else '' }} pending approval</strong>
+                — Your submission{{ 's are' if pending_count > 1 else ' is' }} under review by our admin team.
+                You'll receive a notification once it's approved or rejected.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Stats Grid -->
     <div class="bento-grid">
         <!-- Card 1: Active Services -->

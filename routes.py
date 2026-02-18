@@ -37,14 +37,27 @@ from sqlalchemy import func
 import numpy as np
 import numpy as np
 import textwrap
+from cloudinary_utils import upload_image
 
 def save_uploaded_file(file_storage, folder='images'):
     """
-    Save uploaded file to static folder
+    Save uploaded file to Cloudinary (preferred) or static folder (fallback)
     """
     if not file_storage:
         return None
-        
+
+    # Try Cloudinary first for persistent storage
+    # Pass the actual file object, not the wrapper if possible, but FileStorage works
+    try:
+        # Reset stream just in case
+        file_storage.seek(0)
+        cloudinary_url = upload_image(file_storage, folder=f"skillverse/{folder}")
+        if cloudinary_url:
+            return cloudinary_url
+    except Exception as e:
+        print(f"Cloudinary upload failed: {e}")
+
+    # Fallback to local storage (ephemeral on Render)
     filename = secure_filename(file_storage.filename)
     if not filename:
         return None
@@ -57,6 +70,9 @@ def save_uploaded_file(file_storage, folder='images'):
     # Ensure directory exists
     upload_path = os.path.join(current_app.root_path, 'static', folder)
     os.makedirs(upload_path, exist_ok=True)
+    
+    # Reset stream position before saving locally
+    file_storage.seek(0)
     
     # Save file
     file_storage.save(os.path.join(upload_path, unique_filename))
@@ -712,12 +728,12 @@ def create():
             if filename:
                 data['image_url'] = filename
         
-        # Create service using ServiceManager
-        service = service_manager.create_service(current_user.id, data)
+        # Create service using ServiceManager (pending_approval=True means admin must approve)
+        service = service_manager.create_service(current_user.id, data, pending_approval=True)
         
         if service:
-            flash('Service created successfully!', 'success')
-            return redirect(url_for('service.detail', service_id=service.id))
+            flash('🎉 Skill submitted successfully! It will appear in Browse Skills once approved by our admin team.', 'info')
+            return redirect(url_for('user.dashboard'))
         else:
             flash('Error creating service. Please try again.', 'danger')
     
@@ -1328,7 +1344,7 @@ def order_detail(order_id):
 @user_bp.route('/order/<int:order_id>/action/<action>', methods=['POST'])
 @login_required
 def order_action(order_id, action):
-    """Handle order actions (accept/complete)"""
+    """Handle order actions (accept/complete/reject)"""
     order = Order.query.get_or_404(order_id)
     
     if current_user.id != order.seller_id:
@@ -1359,6 +1375,39 @@ def order_action(order_id, action):
             # Send completion emails
             from email_utils import send_order_completed_emails
             send_order_completed_emails(order)
+
+    elif action == 'reject':
+        # Only allow rejecting pending orders
+        if order.status != 'pending':
+            flash('Only pending orders can be rejected.', 'warning')
+            return redirect(url_for('user.order_detail', order_id=order_id))
+
+        # Update order status to cancelled
+        order.update_status('cancelled')
+        db.session.commit()
+
+        # Refund the buyer's wallet
+        try:
+            from payment_system import WalletManager, PaymentGateway
+            gateway = PaymentGateway()
+            wallet_mgr = WalletManager(payment_gateway=gateway)
+            wallet_mgr.add_money(
+                user_id=order.buyer_id,
+                amount=order.total_price,
+                payment_method='refund',
+                description=f'Refund for rejected Order #{order.id} - {order.service.title}'
+            )
+        except Exception as e:
+            print(f"[Order Reject] Wallet refund failed (non-fatal): {e}")
+
+        # Notify the buyer
+        notification_manager.create_notification(
+            order.buyer_id,
+            f"Order #{order.id} Rejected",
+            f"Unfortunately, your order for \"{order.service.title}\" was rejected by the provider. Your payment has been refunded to your wallet.",
+            url_for('user.orders')
+        )
+        flash('Order rejected. The buyer has been notified and their payment refunded.', 'warning')
             
     return redirect(url_for('user.order_detail', order_id=order_id))
 
@@ -1412,16 +1461,59 @@ def profile(username):
     """
     user = User.query.filter_by(username=username).first_or_404()
     
-    # Get user's services
-    services = user.get_services()
+    # Get user's services (only active ones for public view)
+    services = [s for s in user.get_services() if s.is_active]
     
     # Get user stats
     stats = user_manager.get_user_stats(user.id)
+
+    # ── Satisfaction Rate Calculation ─────────────────────────────────────
+    # Formula: 40% Testimonials + 20% Skill Reviews + 10% Skills Available + 30% Provider Reviews
+    from models import Testimonial, Review, Service as Svc
+
+    # Component 1 (40%): Average testimonial rating (scale 1-5 → 0-100)
+    testimonials = Testimonial.query.filter_by(user_id=user.id, is_active=True).all()
+    if testimonials:
+        avg_testimonial = sum(t.rating for t in testimonials) / len(testimonials)
+        testimonial_score = (avg_testimonial / 5.0) * 100
+    else:
+        testimonial_score = 0.0
+
+    # Component 2 (20%): Average skill review rating across all provider services
+    all_service_ids = [s.id for s in Svc.query.filter_by(user_id=user.id).all()]
+    if all_service_ids:
+        reviews_for_services = Review.query.filter(Review.service_id.in_(all_service_ids)).all()
+        if reviews_for_services:
+            avg_review = sum(r.rating for r in reviews_for_services) / len(reviews_for_services)
+            review_score = (avg_review / 5.0) * 100
+        else:
+            review_score = 0.0
+    else:
+        review_score = 0.0
+
+    # Component 3 (10%): Skills available — score based on active service count (max 10 services = 100%)
+    active_service_count = Svc.query.filter_by(user_id=user.id, is_active=True).count()
+    skills_available_score = min(active_service_count / 10.0, 1.0) * 100
+
+    # Component 4 (30%): Provider's own average rating (from User.get_average_rating)
+    provider_avg_rating = user.get_average_rating()  # Returns float 0-5
+    provider_review_score = (provider_avg_rating / 5.0) * 100
+
+    # Weighted satisfaction rate
+    satisfaction_rate = (
+        0.40 * testimonial_score +
+        0.20 * review_score +
+        0.10 * skills_available_score +
+        0.30 * provider_review_score
+    )
+    satisfaction_rate = round(min(max(satisfaction_rate, 0), 100), 1)
+    # ─────────────────────────────────────────────────────────────────────
     
     return render_template('user/profile.html',
                          user=user,
                          services=services,
-                         stats=stats)
+                         stats=stats,
+                         satisfaction_rate=satisfaction_rate)
 
 
 @user_bp.route('/settings', methods=['GET', 'POST'])
@@ -2098,7 +2190,8 @@ def dashboard():
         'total_users': total_users,
         'total_services': total_services,
         'total_orders': total_orders,
-        'total_reviews': total_reviews
+        'total_reviews': total_reviews,
+        'pending_skills': Service.query.filter_by(pending_approval=True, is_active=False).count()
     }
     
     return render_template('admin/dashboard.html',
@@ -2297,6 +2390,75 @@ def orders():
     """
     orders = Order.query.order_by(Order.created_at.desc()).all()
     return render_template('admin/orders.html', orders=orders)
+
+
+# ============================================================================
+# ADMIN: PENDING SKILL APPROVAL ROUTES
+# ============================================================================
+
+@admin_bp.route('/pending-skills')
+@admin_required
+def pending_skills():
+    """
+    View all skills pending admin approval.
+    """
+    pending = Service.query.filter_by(pending_approval=True, is_active=False).order_by(Service.created_at.desc()).all()
+    return render_template('admin/pending_skills.html', pending_services=pending)
+
+
+@admin_bp.route('/skills/<int:service_id>/approve', methods=['POST'])
+@admin_required
+def approve_skill(service_id):
+    """
+    Approve a pending skill — makes it live in Browse Skills.
+    """
+    service = Service.query.get_or_404(service_id)
+    service.is_active = True
+    service.pending_approval = False
+    db.session.commit()
+
+    # Notify the provider
+    notification = Notification(
+        user_id=service.user_id,
+        title='✅ Your Skill Has Been Approved!',
+        message=f'Great news! Your skill "{service.title}" has been approved by the admin and is now live on SkillVerse.',
+        link=url_for('service.detail', service_id=service.id)
+    )
+    db.session.add(notification)
+    db.session.commit()
+
+    flash(f'Skill "{service.title}" has been approved and is now live!', 'success')
+    return redirect(url_for('admin.pending_skills'))
+
+
+@admin_bp.route('/skills/<int:service_id>/reject', methods=['POST'])
+@admin_required
+def reject_skill(service_id):
+    """
+    Reject a pending skill — removes it and notifies the provider.
+    """
+    service = Service.query.get_or_404(service_id)
+    reason = request.form.get('reason', 'No reason provided.')
+    provider_id = service.user_id
+    service_title = service.title
+
+    # Soft-delete: mark inactive and clear pending flag
+    service.is_active = False
+    service.pending_approval = False
+    db.session.commit()
+
+    # Notify the provider
+    notification = Notification(
+        user_id=provider_id,
+        title='❌ Skill Submission Rejected',
+        message=f'Your skill "{service_title}" was not approved. Reason: {reason}. Please review and resubmit.',
+        link=url_for('service.create')
+    )
+    db.session.add(notification)
+    db.session.commit()
+
+    flash(f'Skill "{service_title}" has been rejected and the provider has been notified.', 'warning')
+    return redirect(url_for('admin.pending_skills'))
 
 
 @admin_bp.route('/bookings')

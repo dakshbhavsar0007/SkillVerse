@@ -253,13 +253,14 @@ class ServiceManager:
             is_active=True
         ).all()
     
-    def create_service(self, user_id, data):
+    def create_service(self, user_id, data, pending_approval=False):
         """
         Create a new service
         
         Args:
             user_id (int): Provider user ID
             data (dict): Service data
+            pending_approval (bool): If True, service requires admin approval before going live
             
         Returns:
             Service: Created service object
@@ -287,7 +288,10 @@ class ServiceManager:
             delivery_time=data.get('delivery_time', ''),
             category_id=data['category_id'],
             tags=data.get('tags', ''),
-            image_url=image_url
+            image_url=image_url,
+            # If pending_approval is True, set inactive until admin approves
+            is_active=not pending_approval,
+            pending_approval=pending_approval
         )
         
         db.session.add(service)

@@ -1,0 +1,195 @@
+{% extends 'base.html' %}
+
+{% block title %}Pending Skill Approvals - Admin{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/modern_dashboard.css') }}">
+<style>
+    .pending-card {
+        background: var(--card-bg, #fff);
+        border: 1px solid var(--border-color, #e2e8f0);
+        border-radius: 1rem;
+        overflow: hidden;
+        transition: box-shadow 0.2s;
+    }
+
+    .pending-card:hover {
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.10);
+    }
+
+    .skill-img {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 0.75rem;
+        flex-shrink: 0;
+    }
+
+    .badge-pending {
+        background: linear-gradient(135deg, #f59e0b, #d97706);
+        color: #fff;
+        padding: 0.35rem 0.85rem;
+        border-radius: 2rem;
+        font-size: 0.78rem;
+        font-weight: 700;
+        letter-spacing: 0.03em;
+    }
+
+    .provider-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    .reject-reason {
+        resize: none;
+        font-size: 0.85rem;
+    }
+
+    .empty-state {
+        padding: 5rem 2rem;
+        text-align: center;
+    }
+
+    .empty-state i {
+        font-size: 4rem;
+        opacity: 0.25;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="dashboard-container">
+
+    <!-- Page Header -->
+    <div class="hero-section mb-0" style="padding: 2.5rem 2rem 2rem;">
+        <div class="hero-content">
+            <div class="hero-avatar" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                <i class="bi bi-hourglass-split"></i>
+            </div>
+            <h1 class="hero-title">Pending Skill Approvals</h1>
+            <p class="hero-subtitle">Review and approve or reject new skills submitted by providers</p>
+        </div>
+    </div>
+
+    <div class="container py-4">
+
+        <!-- Quick nav back -->
+        <div class="mb-4">
+            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary rounded-pill btn-sm">
+                <i class="bi bi-arrow-left me-1"></i> Back to Dashboard
+            </a>
+        </div>
+
+        {% if pending_services %}
+        <div class="row g-4">
+            {% for service in pending_services %}
+            <div class="col-12">
+                <div class="pending-card p-4">
+                    <div class="d-flex align-items-start gap-4 flex-wrap">
+
+                        <!-- Service Image -->
+                        <img src="{{ service.get_image_url() }}"
+                            onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=200&q=80';"
+                            class="skill-img" alt="{{ service.title }}">
+
+                        <!-- Service Info -->
+                        <div class="flex-grow-1">
+                            <div class="d-flex align-items-center gap-2 mb-1 flex-wrap">
+                                <h5 class="fw-bold mb-0">{{ service.title }}</h5>
+                                <span class="badge-pending">⏳ Pending Approval</span>
+                            </div>
+
+                            <!-- Provider Info -->
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <img src="{{ service.provider.get_avatar_url() }}" class="provider-avatar"
+                                    onerror="this.src='https://via.placeholder.com/36?text=P'">
+                                <span class="small text-muted">by
+                                    <a href="{{ url_for('user.profile', username=service.provider.username) }}"
+                                        class="fw-semibold text-decoration-none">{{ service.provider.username }}</a>
+                                </span>
+                                <span class="text-muted small">•</span>
+                                <span class="badge bg-secondary bg-opacity-10 text-secondary border small">
+                                    {{ service.category.name }}
+                                </span>
+                                <span class="text-muted small">•</span>
+                                <span class="small text-muted">
+                                    <i class="bi bi-calendar3 me-1"></i>Submitted {{ service.created_at.strftime('%b %d,
+                                    %Y') }}
+                                </span>
+                            </div>
+
+                            <!-- Description -->
+                            <p class="text-muted small mb-2" style="max-width: 700px;">
+                                {{ service.description[:250] }}{% if service.description|length > 250 %}...{% endif %}
+                            </p>
+
+                            <!-- Price & Delivery -->
+                            <div class="d-flex gap-3 flex-wrap">
+                                <span class="small fw-semibold">
+                                    <i class="bi bi-currency-rupee text-success"></i>
+                                    ₹{{ "%.0f"|format(service.price) }}
+                                </span>
+                                {% if service.delivery_time %}
+                                <span class="small text-muted">
+                                    <i class="bi bi-clock me-1"></i>{{ service.delivery_time }}
+                                </span>
+                                {% endif %}
+                                {% if service.tags %}
+                                <span class="small text-muted">
+                                    <i class="bi bi-tags me-1"></i>{{ service.tags }}
+                                </span>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex flex-column gap-2" style="min-width: 180px;">
+                            <!-- Approve -->
+                            <form action="{{ url_for('admin.approve_skill', service_id=service.id) }}" method="POST">
+                                <button type="submit" class="btn btn-success w-100 rounded-pill fw-bold shadow-sm"
+                                    onclick="return confirm('Approve this skill and make it live?')">
+                                    <i class="bi bi-check-circle-fill me-2"></i>Approve
+                                </button>
+                            </form>
+
+                            <!-- Reject (opens inline form) -->
+                            <button class="btn btn-outline-danger w-100 rounded-pill fw-bold" data-bs-toggle="collapse"
+                                data-bs-target="#rejectForm{{ service.id }}">
+                                <i class="bi bi-x-circle me-2"></i>Reject
+                            </button>
+
+                            <!-- Reject Form (collapsible) -->
+                            <div class="collapse mt-1" id="rejectForm{{ service.id }}">
+                                <form action="{{ url_for('admin.reject_skill', service_id=service.id) }}" method="POST">
+                                    <textarea name="reason"
+                                        class="form-control reject-reason mb-2 rounded-3 border-0 bg-light" rows="2"
+                                        placeholder="Reason for rejection (optional)..."></textarea>
+                                    <button type="submit" class="btn btn-danger w-100 rounded-pill btn-sm fw-bold">
+                                        Confirm Rejection
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        {% else %}
+        <!-- Empty State -->
+        <div class="empty-state bg-white rounded-4 shadow-sm">
+            <i class="bi bi-check2-circle text-success d-block mb-3"></i>
+            <h4 class="fw-bold mb-2">All Clear!</h4>
+            <p class="text-muted mb-4">No skills are currently pending approval. All submissions have been reviewed.</p>
+            <a href="{{ url_for('admin.services') }}" class="btn btn-outline-primary rounded-pill px-4">
+                <i class="bi bi-briefcase me-2"></i>View All Services
+            </a>
+        </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

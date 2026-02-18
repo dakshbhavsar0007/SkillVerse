@@ -398,6 +398,7 @@ class Service(db.Model):
     
     # Status
     is_active = db.Column(db.Boolean, default=True)
+    pending_approval = db.Column(db.Boolean, default=False)  # True when awaiting admin approval
     
     # Statistics
     view_count = db.Column(db.Integer, default=0)
@@ -738,8 +739,22 @@ class ProjectShowcase(db.Model):
     user = db.relationship('User', backref=db.backref('portfolio', lazy='dynamic', cascade='all, delete-orphan'))
 
     
+    def get_image_url(self):
+        """
+        Get resolved image URL
+        """
+        from flask import url_for
+        
+        if not self.image_url:
+            return None
+            
+        if self.image_url.startswith('http'):
+            return self.image_url
+            
+        return url_for('static', filename='portfolio/' + self.image_url)
+
     def __repr__(self):
-        return f'<Message {self.id} Order {self.order_id}>'
+        return f'<Project {self.title}>'
 
 
 class AvailabilitySlot(db.Model):

@@ -46,6 +46,11 @@ class Config:
     MAX_CONTENT_LENGTH = 5 * 1024 * 1024  # 5MB in bytes
     UPLOAD_FOLDER = os.path.join(basedir, 'static', 'uploads')
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
+
+    # Cloudinary Configuration
+    CLOUDINARY_CLOUD_NAME = os.environ.get('CLOUDINARY_CLOUD_NAME')
+    CLOUDINARY_API_KEY = os.environ.get('CLOUDINARY_API_KEY')
+    CLOUDINARY_API_SECRET = os.environ.get('CLOUDINARY_API_SECRET')
     
     # Pagination
     # Number of items to display per page
