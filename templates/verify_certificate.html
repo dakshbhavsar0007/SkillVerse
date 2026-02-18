@@ -12,25 +12,20 @@
         --gold: #B8860B;
         --gold-light: #FDB931;
     }
-
     [data-bs-theme="dark"] {
         --verify-bg: #0f172a;
         --verify-card: #1e293b;
         --verify-border: #334155;
     }
+    body { background-color: var(--verify-bg); }
 
-    body {
-        background-color: var(--verify-bg);
-    }
-
-    /* ── Hero Search Area ── */
+    /* ── Hero ── */
     .verify-hero {
         background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-        padding: 5rem 0 4rem;
+        padding: 5rem 0 3rem;
         position: relative;
         overflow: hidden;
     }
-
     .verify-hero::before {
         content: '';
         position: absolute;
@@ -38,15 +33,8 @@
         background-image: radial-gradient(rgba(99,102,241,0.15) 1px, transparent 1px);
         background-size: 28px 28px;
     }
-
-    .verify-hero::after {
-        content: '';
-        position: absolute;
-        top: -60px; right: -60px;
-        width: 300px; height: 300px;
-        border-radius: 50%;
-        background: radial-gradient(circle, rgba(99,102,241,0.2) 0%, transparent 70%);
-    }
+    @media (max-width: 991px) { .verify-hero { padding: 4rem 0 2.5rem; } }
+    @media (max-width: 575px) { .verify-hero { padding: 3rem 0 2rem; } }
 
     .hero-badge {
         display: inline-flex;
@@ -57,34 +45,30 @@
         color: #a5b4fc;
         padding: 0.4rem 1rem;
         border-radius: 2rem;
-        font-size: 0.8rem;
+        font-size: 0.78rem;
         font-weight: 600;
         letter-spacing: 0.05em;
         text-transform: uppercase;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.25rem;
     }
-
     .hero-title {
-        font-size: clamp(2rem, 5vw, 3rem);
+        font-size: clamp(1.65rem, 5vw, 3rem);
         font-weight: 800;
         color: #f1f5f9;
         letter-spacing: -0.03em;
         line-height: 1.15;
         margin-bottom: 1rem;
     }
-
     .hero-title span {
         background: linear-gradient(135deg, #FDB931, #B8860B);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
     }
-
     .hero-subtitle {
         color: #94a3b8;
-        font-size: 1.1rem;
-        max-width: 520px;
-        line-height: 1.6;
+        font-size: 0.98rem;
+        line-height: 1.65;
     }
 
     /* ── Search Card ── */
@@ -92,101 +76,145 @@
         background: var(--verify-card);
         border: 1px solid var(--verify-border);
         border-radius: 1.25rem;
-        padding: 2.5rem;
-        box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+        padding: 1.5rem;
+        box-shadow: 0 20px 60px rgba(0,0,0,0.18);
         position: relative;
         z-index: 1;
     }
+    @media (min-width: 576px) { .search-card { padding: 2rem; } }
 
-    .cert-input-group {
+    /* ── Mode Tabs ── */
+    .mode-tabs {
         display: flex;
-        gap: 0.75rem;
+        background: var(--verify-bg);
+        border-radius: 0.75rem;
+        padding: 4px;
+        margin-bottom: 1.1rem;
+        border: 1px solid var(--verify-border);
     }
-
-    .cert-input {
+    .mode-tab {
         flex: 1;
+        border: none;
+        background: transparent;
+        border-radius: 0.6rem;
+        padding: 0.55rem 0.5rem;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #94a3b8;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        white-space: nowrap;
+    }
+    .mode-tab.active {
+        background: var(--verify-card);
+        color: var(--accent);
+        box-shadow: 0 1px 6px rgba(0,0,0,0.1);
+    }
+    .mode-tab:hover:not(.active) { color: var(--bs-body-color); }
+
+    /* ── Input ── */
+    .input-hint {
+        font-size: 0.77rem;
+        color: #94a3b8;
+        margin-bottom: 0.6rem;
+        display: flex;
+        align-items: flex-start;
+        gap: 0.35rem;
+        line-height: 1.5;
+    }
+    .cert-input {
+        width: 100%;
         background: var(--verify-bg);
         border: 2px solid var(--verify-border);
         border-radius: 0.75rem;
-        padding: 0.9rem 1.25rem;
-        font-size: 1rem;
+        padding: 0.85rem 1rem;
+        font-size: 0.95rem;
         font-family: 'Courier New', monospace;
         font-weight: 600;
         color: var(--bs-body-color);
-        letter-spacing: 0.05em;
+        letter-spacing: 0.04em;
         transition: all 0.2s;
+        box-sizing: border-box;
     }
-
     .cert-input:focus {
         outline: none;
         border-color: var(--accent);
         box-shadow: 0 0 0 3px rgba(79,70,229,0.15);
         background: var(--verify-card);
     }
-
     .cert-input::placeholder {
         font-family: system-ui, sans-serif;
         font-weight: 400;
         letter-spacing: normal;
         color: #94a3b8;
+        font-size: 0.85rem;
     }
 
+    /* ── Verify Button ── */
     .verify-btn {
+        width: 100%;
+        margin-top: 0.75rem;
         background: linear-gradient(135deg, #4f46e5, #3b82f6);
         border: none;
         border-radius: 0.75rem;
         color: white;
-        padding: 0.9rem 2rem;
+        padding: 0.85rem 1rem;
         font-weight: 700;
         font-size: 0.95rem;
         cursor: pointer;
         transition: all 0.2s;
-        white-space: nowrap;
         display: flex;
         align-items: center;
+        justify-content: center;
         gap: 0.5rem;
+        touch-action: manipulation;
+    }
+    .verify-btn:hover  { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(79,70,229,0.4); }
+    .verify-btn:active { transform: translateY(0); }
+    .verify-btn:disabled { opacity: 0.7; transform: none; pointer-events: none; }
+
+    /* ── Spinner ── */
+    .spinner-sm {
+        width: 17px; height: 17px;
+        border: 2px solid rgba(255,255,255,0.35);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+        display: none;
+        flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Results ── */
+    .result-section { margin-top: 1.25rem; }
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(14px); }
+        to   { opacity: 1; transform: translateY(0); }
     }
 
-    .verify-btn:hover {
-        transform: translateY(-1px);
-        box-shadow: 0 8px 20px rgba(79,70,229,0.4);
-    }
-
-    .verify-btn:disabled {
-        opacity: 0.7;
-        transform: none;
-    }
-
-    /* ── Result Card ── */
-    .result-section {
-        margin-top: 2rem;
-    }
-
-    /* Valid Certificate */
+    /* Valid */
     .cert-valid-card {
         background: var(--verify-card);
         border: 1px solid var(--verify-border);
         border-radius: 1.25rem;
         overflow: hidden;
         box-shadow: 0 4px 24px rgba(0,0,0,0.08);
-        animation: slideUp 0.4s ease;
+        animation: slideUp 0.35s ease;
     }
-
-    @keyframes slideUp {
-        from { opacity: 0; transform: translateY(20px); }
-        to   { opacity: 1; transform: translateY(0); }
-    }
-
     .cert-valid-header {
         background: linear-gradient(135deg, #064e3b, #065f46);
-        padding: 2rem 2.5rem;
+        padding: 1.1rem 1.25rem;
         display: flex;
         align-items: center;
-        gap: 1.5rem;
+        gap: 0.9rem;
     }
-
+    @media (min-width: 576px) { .cert-valid-header { padding: 1.5rem 1.75rem; } }
     .valid-icon-wrap {
-        width: 64px; height: 64px;
+        width: 48px; height: 48px;
         background: rgba(255,255,255,0.15);
         border-radius: 50%;
         display: flex;
@@ -195,118 +223,110 @@
         flex-shrink: 0;
         border: 2px solid rgba(255,255,255,0.2);
     }
-
     .cert-valid-header h4 {
         color: #ecfdf5;
         font-weight: 800;
-        margin-bottom: 0.25rem;
-        font-size: 1.3rem;
-    }
-
-    .cert-valid-header p {
-        color: #6ee7b7;
-        margin: 0;
-        font-size: 0.9rem;
-    }
-
-    .cert-body {
-        padding: 2rem 2.5rem;
-    }
-
-    .cert-field {
-        display: flex;
-        flex-direction: column;
-        gap: 0.25rem;
-        padding: 1rem 0;
-        border-bottom: 1px solid var(--verify-border);
-    }
-
-    .cert-field:last-child {
-        border-bottom: none;
-    }
-
-    .cert-field-label {
-        font-size: 0.72rem;
-        text-transform: uppercase;
-        letter-spacing: 0.08em;
-        color: #94a3b8;
-        font-weight: 700;
-    }
-
-    .cert-field-value {
-        font-size: 1.05rem;
-        font-weight: 600;
-        color: var(--bs-body-color);
-    }
-
-    .cert-id-badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.5rem;
-        background: rgba(79,70,229,0.1);
-        border: 1px solid rgba(79,70,229,0.25);
-        color: #818cf8;
-        padding: 0.3rem 0.8rem;
-        border-radius: 0.5rem;
-        font-family: 'Courier New', monospace;
+        margin-bottom: 0.15rem;
         font-size: 1rem;
-        font-weight: 700;
-        letter-spacing: 0.05em;
     }
-
+    @media (min-width: 576px) { .cert-valid-header h4 { font-size: 1.15rem; } }
+    .cert-valid-header p { color: #6ee7b7; margin: 0; font-size: 0.82rem; }
     .gold-seal {
-        width: 80px; height: 80px;
+        width: 48px; height: 48px;
         background: linear-gradient(135deg, #FDB931, #B8860B);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 2rem;
+        font-size: 1.4rem;
         box-shadow: 0 4px 12px rgba(184,134,11,0.4);
         flex-shrink: 0;
+        margin-left: auto;
     }
+    @media (max-width: 400px) { .gold-seal { display: none; } }
 
-    /* Invalid Certificate */
+    .cert-body { padding: 1.1rem 1.25rem; }
+    @media (min-width: 576px) { .cert-body { padding: 1.5rem 1.75rem; } }
+    .cert-field {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        padding: 0.8rem 0;
+        border-bottom: 1px solid var(--verify-border);
+    }
+    .cert-field:last-child { border-bottom: none; }
+    .cert-field-label {
+        font-size: 0.67rem;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #94a3b8;
+        font-weight: 700;
+    }
+    .cert-field-value {
+        font-size: 0.97rem;
+        font-weight: 600;
+        color: var(--bs-body-color);
+        word-break: break-word;
+    }
+    .cert-id-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        background: rgba(79,70,229,0.1);
+        border: 1px solid rgba(79,70,229,0.25);
+        color: #818cf8;
+        padding: 0.22rem 0.65rem;
+        border-radius: 0.4rem;
+        font-family: 'Courier New', monospace;
+        font-size: 0.88rem;
+        font-weight: 700;
+    }
+    .verify-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4rem;
+        padding: 0.28rem 0.8rem;
+        border-radius: 2rem;
+        font-size: 0.73rem;
+        font-weight: 700;
+    }
+    .verify-badge-hash { background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.3); color:#10b981; }
+    .verify-badge-id   { background:rgba(99,102,241,0.1); border:1px solid rgba(99,102,241,0.3); color:#818cf8; }
+
+    /* Invalid */
     .cert-invalid-card {
         background: var(--verify-card);
         border: 1px solid rgba(239,68,68,0.3);
         border-radius: 1.25rem;
-        padding: 3rem 2.5rem;
+        padding: 1.75rem 1.25rem;
         text-align: center;
-        animation: slideUp 0.4s ease;
+        animation: slideUp 0.35s ease;
     }
-
+    @media (min-width: 576px) { .cert-invalid-card { padding: 2.25rem 1.75rem; } }
     .invalid-icon {
-        width: 80px; height: 80px;
+        width: 60px; height: 60px;
         background: rgba(239,68,68,0.1);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        margin: 0 auto 1.5rem;
+        margin: 0 auto 1.1rem;
         border: 2px solid rgba(239,68,68,0.2);
     }
 
     /* How it works */
-    .how-section {
-        padding: 4rem 0;
-    }
-
+    .how-section { padding: 2.5rem 0 3rem; }
     .how-card {
         background: var(--verify-card);
         border: 1px solid var(--verify-border);
         border-radius: 1rem;
-        padding: 1.75rem;
+        padding: 1.35rem;
         height: 100%;
         transition: transform 0.2s;
     }
-
-    .how-card:hover {
-        transform: translateY(-3px);
-    }
-
+    .how-card:hover { transform: translateY(-3px); }
     .how-num {
-        width: 40px; height: 40px;
+        width: 36px; height: 36px;
         background: linear-gradient(135deg, #4f46e5, #3b82f6);
         border-radius: 0.5rem;
         display: flex;
@@ -314,34 +334,22 @@
         justify-content: center;
         color: white;
         font-weight: 800;
-        font-size: 1rem;
-        margin-bottom: 1rem;
-    }
-
-    /* Loading spinner */
-    .spinner-sm {
-        width: 18px; height: 18px;
-        border: 2px solid rgba(255,255,255,0.3);
-        border-top-color: white;
-        border-radius: 50%;
-        animation: spin 0.7s linear infinite;
-        display: none;
-    }
-
-    @keyframes spin {
-        to { transform: rotate(360deg); }
+        font-size: 0.9rem;
+        margin-bottom: 0.85rem;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div style="margin-top: 80px;"></div>
+<div style="margin-top: 76px;"></div>
 
 <!-- ── Hero ── -->
 <div class="verify-hero">
     <div class="container position-relative">
-        <div class="row align-items-center g-5">
-            <div class="col-lg-6">
+        <div class="row align-items-center g-4">
+
+            <!-- Headline (hidden on mobile to save space, shown md+) -->
+            <div class="col-lg-5 d-none d-lg-block">
                 <div class="hero-badge">
                     <i class="bi bi-shield-check-fill"></i>
                     Certificate Verification Portal
@@ -350,41 +358,68 @@
                     Verify Any<br><span>SkillVerse Certificate</span>
                 </h1>
                 <p class="hero-subtitle">
-                    Instantly confirm the authenticity of any certificate issued by SkillVerse.
-                    Enter the Certificate ID to view full details.
+                    Confirm the authenticity of any SkillVerse certificate —
+                    search by Certificate ID or scan the QR code on the PDF for
+                    cryptographic proof.
                 </p>
             </div>
-            <div class="col-lg-6">
+
+            <!-- Mobile headline (visible only on small screens, above card) -->
+            <div class="col-12 d-lg-none text-center">
+                <div class="hero-badge mx-auto" style="width:fit-content">
+                    <i class="bi bi-shield-check-fill"></i>
+                    Verification Portal
+                </div>
+                <h1 class="hero-title">Verify Any <span>Certificate</span></h1>
+            </div>
+
+            <!-- Search Card -->
+            <div class="col-12 col-lg-7">
                 <div class="search-card">
-                    <label class="form-label fw-bold mb-3 d-flex align-items-center gap-2">
-                        <i class="bi bi-search text-primary"></i>
-                        Enter Certificate ID
-                    </label>
-                    <div class="cert-input-group">
-                        <input
-                            type="text"
-                            id="certInput"
-                            class="cert-input"
-                            placeholder="e.g. CERT-A1B2C3"
-                            maxlength="20"
-                            autocomplete="off"
-                            spellcheck="false"
-                        >
-                        <button class="verify-btn" id="verifyBtn" onclick="verifyCert()">
-                            <span class="spinner-sm" id="spinner"></span>
-                            <i class="bi bi-search" id="searchIcon"></i>
-                            Verify
+
+                    <!-- Mode Tabs -->
+                    <div class="mode-tabs" role="tablist">
+                        <button class="mode-tab active" id="tabId" onclick="switchMode('id')">
+                            <i class="bi bi-search"></i>
+                            <span>Certificate ID</span>
+                        </button>
+                        <button class="mode-tab" id="tabQr" onclick="switchMode('qr')">
+                            <i class="bi bi-qr-code-scan"></i>
+                            <span>QR Token</span>
                         </button>
                     </div>
-                    <p class="text-muted small mt-2 mb-0">
-                        <i class="bi bi-info-circle me-1"></i>
-                        Certificate IDs are in the format <code>CERT-XXXXXX</code>
+
+                    <!-- Dynamic hint -->
+                    <p class="input-hint" id="modeHint">
+                        <i class="bi bi-info-circle-fill" style="flex-shrink:0;color:var(--accent);margin-top:2px"></i>
+                        <span>Type the Certificate ID printed on the PDF or sent in your email.</span>
                     </p>
 
-                    <!-- Result Area -->
+                    <!-- Input field -->
+                    <input
+                        type="text"
+                        id="certInput"
+                        class="cert-input"
+                        placeholder="CERT-A1B2C3"
+                        maxlength="20"
+                        autocomplete="off"
+                        spellcheck="false"
+                        inputmode="text"
+                    >
+
+                    <!-- Verify button (full width, easy to tap) -->
+                    <button class="verify-btn" id="verifyBtn" onclick="verifyCert()">
+                        <span class="spinner-sm" id="spinner"></span>
+                        <i class="bi bi-shield-check" id="searchIcon"></i>
+                        Verify Certificate
+                    </button>
+
+                    <!-- Result area (appears below button) -->
                     <div id="resultArea" class="result-section" style="display:none;"></div>
+
                 </div>
             </div>
+
         </div>
     </div>
 </div>
@@ -393,192 +428,246 @@
 <div class="how-section">
     <div class="container">
         <div class="text-center mb-4">
-            <h2 class="fw-bold">How Verification Works</h2>
-            <p class="text-muted">Every SkillVerse certificate is cryptographically stored in our database.</p>
+            <h2 class="fw-bold fs-5">How Verification Works</h2>
+            <p class="text-muted small mb-0">Every SkillVerse certificate is cryptographically stored and tamper-proof.</p>
         </div>
-        <div class="row g-4">
-            <div class="col-md-4">
+        <div class="row g-3">
+            <div class="col-12 col-sm-4">
                 <div class="how-card">
                     <div class="how-num">1</div>
-                    <h5 class="fw-bold mb-2">Find the Certificate ID</h5>
-                    <p class="text-muted small mb-0">Locate the Certificate ID on the PDF certificate or in the email notification. It looks like <code>CERT-A1B2C3</code>.</p>
+                    <h6 class="fw-bold mb-1">Find Your Certificate</h6>
+                    <p class="text-muted small mb-0">
+                        The Certificate ID (e.g. <code>CERT-A1B2C3</code>) is on the PDF
+                        and in your email. Or scan the QR code on the certificate.
+                    </p>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-12 col-sm-4">
                 <div class="how-card">
                     <div class="how-num">2</div>
-                    <h5 class="fw-bold mb-2">Enter & Verify</h5>
-                    <p class="text-muted small mb-0">Paste the Certificate ID into the search box above and click "Verify". Our system checks it against the live database instantly.</p>
+                    <h6 class="fw-bold mb-1">Search or Scan</h6>
+                    <p class="text-muted small mb-0">
+                        Use <strong>Certificate ID</strong> to do a quick lookup, or use
+                        <strong>QR Token</strong> for full cryptographic hash verification.
+                    </p>
                 </div>
             </div>
-            <div class="col-md-4">
+            <div class="col-12 col-sm-4">
                 <div class="how-card">
                     <div class="how-num">3</div>
-                    <h5 class="fw-bold mb-2">View Authentic Details</h5>
-                    <p class="text-muted small mb-0">See the student's name, skill learned, provider, and the exact date the certificate was issued — verified and tamper-proof.</p>
+                    <h6 class="fw-bold mb-1">View Details</h6>
+                    <p class="text-muted small mb-0">
+                        See student name, skill, provider, and issue date — verified live.
+                        QR scan also confirms the certificate is untampered.
+                    </p>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
-<!-- ── Pre-filled from URL param ── -->
-{% if cert_id %}
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        document.getElementById('certInput').value = "{{ cert_id }}";
-        verifyCert();
-    });
-</script>
-{% endif %}
-
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    const certInput = document.getElementById('certInput');
-    const verifyBtn = document.getElementById('verifyBtn');
-    const spinner   = document.getElementById('spinner');
+    const certInput  = document.getElementById('certInput');
+    const verifyBtn  = document.getElementById('verifyBtn');
+    const spinner    = document.getElementById('spinner');
     const searchIcon = document.getElementById('searchIcon');
     const resultArea = document.getElementById('resultArea');
+    const modeHint   = document.getElementById('modeHint');
 
-    // Allow Enter key
-    certInput.addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') verifyCert();
-    });
+    let currentMode = 'id';
 
-    // Auto-uppercase as user types
+    /* ── Tab switcher ─────────────────────────────────────────── */
+    function switchMode(mode) {
+        currentMode = mode;
+        document.getElementById('tabId').classList.toggle('active', mode === 'id');
+        document.getElementById('tabQr').classList.toggle('active', mode === 'qr');
+
+        if (mode === 'id') {
+            certInput.placeholder = 'CERT-A1B2C3';
+            certInput.maxLength   = 20;
+            modeHint.innerHTML    =
+                '<i class="bi bi-info-circle-fill" style="flex-shrink:0;color:var(--accent);margin-top:2px"></i>' +
+                '<span>Type the Certificate ID printed on the PDF or sent in your email.</span>';
+        } else {
+            certInput.placeholder = 'SV:CERT-A1B2C3:abcdef1234...';
+            certInput.maxLength   = 200;
+            modeHint.innerHTML    =
+                '<i class="bi bi-qr-code-scan" style="flex-shrink:0;color:var(--accent);margin-top:2px"></i>' +
+                '<span>Scan the QR code on the certificate, then paste the full token here.</span>';
+        }
+        certInput.value = '';
+        certInput.focus();
+        resultArea.style.display = 'none';
+    }
+
+    /* ── Enter key ────────────────────────────────────────────── */
+    certInput.addEventListener('keypress', e => { if (e.key === 'Enter') verifyCert(); });
+
+    /* ── Auto-uppercase in ID mode only ──────────────────────── */
     certInput.addEventListener('input', function () {
-        const pos = this.selectionStart;
-        this.value = this.value.toUpperCase();
-        this.setSelectionRange(pos, pos);
+        if (currentMode === 'id') {
+            const pos = this.selectionStart;
+            this.value = this.value.toUpperCase();
+            this.setSelectionRange(pos, pos);
+        }
     });
 
+    /* ── Main verify ──────────────────────────────────────────── */
     function verifyCert() {
-        const certId = certInput.value.trim();
-        if (!certId) {
+        const input = certInput.value.trim();
+        if (!input) {
             certInput.focus();
             certInput.classList.add('border-danger');
             setTimeout(() => certInput.classList.remove('border-danger'), 1500);
             return;
         }
 
-        // Loading state
-        verifyBtn.disabled = true;
-        spinner.style.display = 'block';
-        searchIcon.style.display = 'none';
-        resultArea.style.display = 'none';
+        // Client-side QR format check
+        if (currentMode === 'qr') {
+            const parts = input.split(':');
+            if (parts.length !== 3 || parts[0] !== 'SV') {
+                showInvalid(
+                    'bi-exclamation-triangle-fill', 'text-warning',
+                    'Invalid Token Format',
+                    'QR tokens must start with <code>SV:</code>.<br>' +
+                    'Open your QR scanner app, scan the certificate QR, and paste the full result here.'
+                );
+                return;
+            }
+        }
 
-        fetch(`/verify/api/${encodeURIComponent(certId)}`)
-            .then(r => r.json())
-            .then(data => {
-                verifyBtn.disabled = false;
-                spinner.style.display = 'none';
-                searchIcon.style.display = 'block';
-                resultArea.style.display = 'block';
+        setLoading(true);
 
-                if (data.valid) {
-                    resultArea.innerHTML = `
-                        <div class="cert-valid-card">
-                            <div class="cert-valid-header">
-                                <div class="valid-icon-wrap">
-                                    <i class="bi bi-patch-check-fill text-white fs-3"></i>
-                                </div>
-                                <div>
-                                    <h4>✅ Certificate Verified</h4>
-                                    <p>This is an authentic SkillVerse certificate.</p>
-                                </div>
-                                <div class="ms-auto gold-seal">🎓</div>
-                            </div>
-                            <div class="cert-body">
-                                <div class="row g-0">
-                                    <div class="col-md-6">
-                                        <div class="cert-field pe-md-4">
-                                            <span class="cert-field-label">Certificate ID</span>
-                                            <span class="cert-field-value">
-                                                <span class="cert-id-badge">
-                                                    <i class="bi bi-fingerprint"></i>
-                                                    ${data.cert_id}
-                                                </span>
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="cert-field ps-md-4">
-                                            <span class="cert-field-label">Date Issued</span>
-                                            <span class="cert-field-value">${data.issued_at}</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="cert-field pe-md-4">
-                                            <span class="cert-field-label">Awarded To</span>
-                                            <span class="cert-field-value">
-                                                <i class="bi bi-person-fill me-1 text-primary opacity-75"></i>
-                                                ${data.student_name}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="cert-field ps-md-4">
-                                            <span class="cert-field-label">Instructor / Provider</span>
-                                            <span class="cert-field-value">
-                                                <i class="bi bi-person-badge-fill me-1 text-success opacity-75"></i>
-                                                ${data.provider_name}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="cert-field">
-                                            <span class="cert-field-label">Skill / Course Completed</span>
-                                            <span class="cert-field-value fs-5" style="color: var(--gold);">
-                                                🏆 ${data.skill_name}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div class="col-12">
-                                        <div class="cert-field">
-                                            <span class="cert-field-label">Order Reference</span>
-                                            <span class="cert-field-value text-muted">#${data.order_id}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    resultArea.innerHTML = `
-                        <div class="cert-invalid-card">
-                            <div class="invalid-icon">
-                                <i class="bi bi-x-circle-fill text-danger fs-2"></i>
-                            </div>
-                            <h4 class="fw-bold text-danger mb-2">Certificate Not Found</h4>
-                            <p class="text-muted mb-3">
-                                No certificate matching <code class="fw-bold">${certId}</code> was found in our records.
-                            </p>
-                            <ul class="text-muted small text-start d-inline-block mb-0">
-                                <li>Double-check the ID for typos — they are case-sensitive</li>
-                                <li>Make sure you copied the full ID including the <code>CERT-</code> prefix</li>
-                                <li>If you believe this is an error, contact SkillVerse support</li>
-                            </ul>
-                        </div>
-                    `;
-                }
-            })
-            .catch(() => {
-                verifyBtn.disabled = false;
-                spinner.style.display = 'none';
-                searchIcon.style.display = 'block';
-                resultArea.style.display = 'block';
-                resultArea.innerHTML = `
-                    <div class="cert-invalid-card">
-                        <div class="invalid-icon">
-                            <i class="bi bi-wifi-off text-warning fs-2"></i>
-                        </div>
-                        <h4 class="fw-bold mb-2">Connection Error</h4>
-                        <p class="text-muted mb-0">Could not reach the verification server. Please try again.</p>
+        // POST to unified endpoint — backend detects ID vs QR token
+        fetch('/verify/check', {
+            method : 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body   : JSON.stringify({ token: input })
+        })
+        .then(r => r.json())
+        .then(data => {
+            setLoading(false);
+            if (data.valid) {
+                showValid(data);
+            } else {
+                const msg      = data.error || 'This certificate could not be verified.';
+                const isTamper = msg.toLowerCase().includes('tamper') || msg.toLowerCase().includes('hash');
+                showInvalid(
+                    isTamper ? 'bi-shield-x-fill' : 'bi-x-circle-fill',
+                    'text-danger',
+                    isTamper ? '⚠️ Certificate Tampered' : 'Certificate Not Found',
+                    msg + '<br><br><small class="text-muted">' +
+                    (currentMode === 'id'
+                        ? 'Check for typos. IDs look like <code>CERT-A1B2C3</code>.'
+                        : 'Make sure you copied the full token starting with <code>SV:</code>.') +
+                    '</small>'
+                );
+            }
+        })
+        .catch(() => {
+            setLoading(false);
+            showInvalid(
+                'bi-wifi-off', 'text-warning',
+                'Connection Error',
+                'Could not reach the verification server. Check your connection and try again.'
+            );
+        });
+    }
+
+    /* ── Helpers ──────────────────────────────────────────────── */
+    function setLoading(on) {
+        verifyBtn.disabled       = on;
+        spinner.style.display    = on ? 'block' : 'none';
+        searchIcon.style.display = on ? 'none'  : 'block';
+        if (on) resultArea.style.display = 'none';
+    }
+
+    function showValid(d) {
+        const isHash = d.verified_by === 'hash';
+        const badge  = isHash
+            ? `<span class="verify-badge verify-badge-hash"><i class="bi bi-shield-lock-fill"></i> Cryptographically Verified via QR</span>`
+            : `<span class="verify-badge verify-badge-id"><i class="bi bi-database-check"></i> Verified by Certificate ID</span>`;
+
+        resultArea.style.display = 'block';
+        resultArea.innerHTML = `
+            <div class="cert-valid-card">
+                <div class="cert-valid-header">
+                    <div class="valid-icon-wrap">
+                        <i class="bi bi-patch-check-fill text-white" style="font-size:1.5rem"></i>
                     </div>
-                `;
-            });
+                    <div>
+                        <h4>✅ Certificate Verified</h4>
+                        <p>Authentic SkillVerse certificate.</p>
+                    </div>
+                    <div class="gold-seal">🎓</div>
+                </div>
+                <div class="cert-body">
+                    <div class="row g-0">
+                        <div class="col-12 col-sm-6">
+                            <div class="cert-field">
+                                <span class="cert-field-label">Certificate ID</span>
+                                <span class="cert-field-value">
+                                    <span class="cert-id-badge"><i class="bi bi-fingerprint"></i> ${d.cert_id}</span>
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <div class="cert-field">
+                                <span class="cert-field-label">Date Issued</span>
+                                <span class="cert-field-value">${d.issued_at}</span>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <div class="cert-field">
+                                <span class="cert-field-label">Awarded To</span>
+                                <span class="cert-field-value">
+                                    <i class="bi bi-person-fill me-1 text-primary opacity-75"></i>${d.student_name}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-6">
+                            <div class="cert-field">
+                                <span class="cert-field-label">Instructor / Provider</span>
+                                <span class="cert-field-value">
+                                    <i class="bi bi-person-badge-fill me-1 text-success opacity-75"></i>${d.provider_name}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="cert-field">
+                                <span class="cert-field-label">Skill / Course Completed</span>
+                                <span class="cert-field-value" style="color:var(--gold)">🏆 ${d.skill_name}</span>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="cert-field">
+                                <span class="cert-field-label">Order Reference</span>
+                                <span class="cert-field-value text-muted">#${d.order_id}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3 pt-2" style="border-top:1px solid var(--verify-border)">${badge}</div>
+                </div>
+            </div>
+        `;
+        resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function showInvalid(icon, color, title, body) {
+        resultArea.style.display = 'block';
+        resultArea.innerHTML = `
+            <div class="cert-invalid-card">
+                <div class="invalid-icon">
+                    <i class="bi ${icon} ${color}" style="font-size:1.6rem"></i>
+                </div>
+                <h5 class="fw-bold ${color} mb-2">${title}</h5>
+                <p class="text-muted small mb-0">${body}</p>
+            </div>
+        `;
+        resultArea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
 </script>
 {% endblock %}
