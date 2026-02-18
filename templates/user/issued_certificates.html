@@ -38,7 +38,14 @@
                     {% for cert in certificates %}
                     <tr class="fade-in-up" style="animation-delay: {{ loop.index0 * 0.05 }}s">
                         <td class="ps-4">
-                            <span class="fw-bold text-primary">{{ cert.cert_id }}</span>
+                            <div class="d-flex align-items-center gap-2">
+                                <span class="fw-bold text-primary">{{ cert.cert_id }}</span>
+                                <button onclick="copyCertId(this)" data-cert-id="{{ cert.cert_id }}"
+                                    class="btn btn-sm p-0 border-0 text-muted copy-cert-btn"
+                                    title="Copy Certificate ID" style="line-height:1; opacity:0.5;">
+                                    <i class="bi bi-copy"></i>
+                                </button>
+                            </div>
                         </td>
                         <td>
                             <div class="d-flex align-items-center">
@@ -103,4 +110,34 @@
         </div>
     </div>
 </div>
+{% endblock %}
+{% block extra_js %}
+<style>
+    .copy-cert-btn { transition: opacity 0.2s, transform 0.15s; cursor: pointer; }
+    .copy-cert-btn:hover { opacity: 1 !important; transform: scale(1.2); color: #4f46e5 !important; }
+    .copy-cert-btn:active { transform: scale(0.9); }
+</style>
+<script>
+    function copyCertId(btn) {
+        const certId = btn.getAttribute('data-cert-id');
+        navigator.clipboard.writeText(certId).then(() => {
+            const icon = btn.querySelector('i');
+            icon.className = 'bi bi-check-lg text-success';
+            btn.style.opacity = '1';
+            btn.title = 'Copied!';
+            setTimeout(() => {
+                icon.className = 'bi bi-copy';
+                btn.style.opacity = '0.5';
+                btn.title = 'Copy Certificate ID';
+            }, 2000);
+        }).catch(() => {
+            const el = document.createElement('textarea');
+            el.value = certId;
+            document.body.appendChild(el);
+            el.select();
+            document.execCommand('copy');
+            document.body.removeChild(el);
+        });
+    }
+</script>
 {% endblock %}
