@@ -766,26 +766,48 @@
      * Determine if transaction is credit or debit
      */
     function getTransactionType(txn) {
-        // Explicit type field
+        // Explicit type field is the most reliable — always trust it first
         if (txn.type === 'debit') return 'debit';
         if (txn.type === 'credit') return 'credit';
 
-        // Infer from description
+        // Infer from description for old transactions with no type saved
         const desc = (txn.description || '').toLowerCase();
-        if (desc.includes('purchase') || desc.includes('service') || desc.includes('order')) {
-            return 'debit';
-        }
-        if (desc.includes('recharge') || desc.includes('add')) {
+
+        // Credits: refunds, reversals, recharges, and payments received
+        if (desc.includes('refund') || desc.includes('reversal') ||
+            desc.includes('recharge') || desc.includes('payment received') ||
+            desc.includes('add')) {
             return 'credit';
         }
 
-        // Default based on method - wallet deductions are usually debits
+        // Debits: purchases and service orders
+        if (desc.includes('purchase') || desc.includes('service purchase')) {
+            return 'debit';
+        }
+
+        // Default based on method
+        if (txn.method === 'refund') return 'credit';
         if (txn.method === 'wallet') return 'debit';
         return 'credit';
     }
 
+    /**
+     * Get a human-friendly badge label for a transaction
+     */
+    function getTxnBadgeLabel(txn, isCredit) {
+        const desc = (txn.description || '').toLowerCase();
+        const method = (txn.method || '').toLowerCase();
+
+        if (desc.includes('refund'))    return '↩ Refund';
+        if (desc.includes('reversal')) return '↩ Reversal';
+        if (desc.includes('payment received')) return '💸 Payment Received';
+        if (desc.includes('recharge') || method === 'card' || method === 'upi' || method === 'netbanking') {
+            return isCredit ? '💰 Wallet Recharge' : '🛒 Service Purchase';
+        }
+        return isCredit ? '💰 Credit' : '🛒 Debit';
+    }
+
     // ============================================================================
-    // FILTER FUNCTIONS
     // ============================================================================
 
     /**
@@ -889,7 +911,7 @@
             <td>
                 <div class="fw-semibold">${txn.description || 'Transaction'}</div>
                 <small class="badge ${isCredit ? 'bg-success-subtle text-success' : 'bg-danger-subtle text-danger'}">
-                    ${isCredit ? '💰 Wallet Recharge' : '🛒 Service Purchase'}
+                    ${getTxnBadgeLabel(txn, isCredit)}
                 </small>
             </td>
             <td>

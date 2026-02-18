@@ -268,6 +268,21 @@ class Transaction(db.Model):
 
     def to_dict(self):
         """Return a plain dict matching the old transactions.txt JSON format."""
+        # Convert stored UTC timestamp to IST for display
+        ts = self.timestamp
+        if ts:
+            try:
+                import pytz
+                utc = pytz.utc
+                ist = pytz.timezone('Asia/Kolkata')
+                if ts.tzinfo is None:
+                    ts = utc.localize(ts)
+                ts_ist = ts.astimezone(ist)
+            except Exception:
+                ts_ist = ts
+        else:
+            ts_ist = None
+
         return {
             'id':          self.txn_id,
             'user_id':     str(self.user_id),
@@ -277,9 +292,9 @@ class Transaction(db.Model):
             'status':      self.status,
             'type':        self.txn_type,
             'description': self.description,
-            'date':        self.timestamp.strftime('%Y-%m-%d') if self.timestamp else '',
-            'time':        self.timestamp.strftime('%H:%M:%S') if self.timestamp else '',
-            'timestamp':   self.timestamp.isoformat() if self.timestamp else '',
+            'date':        ts_ist.strftime('%Y-%m-%d') if ts_ist else '',
+            'time':        ts_ist.strftime('%H:%M:%S') if ts_ist else '',
+            'timestamp':   ts_ist.isoformat() if ts_ist else '',
             'new_balance': self.new_balance,
         }
 

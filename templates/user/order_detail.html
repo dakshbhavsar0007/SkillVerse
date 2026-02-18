@@ -140,7 +140,21 @@
         gap: 0.5rem;
     }
 
-    /* Scrollbar Polish */
+    /* Copy Certificate ID Button */
+    .copy-cert-btn {
+        opacity: 0.5;
+        transition: opacity 0.2s, transform 0.15s;
+        cursor: pointer;
+    }
+    .copy-cert-btn:hover {
+        opacity: 1;
+        transform: scale(1.15);
+        color: var(--accent-color) !important;
+    }
+    .copy-cert-btn:active {
+        transform: scale(0.95);
+    }
+
     .chat-messages::-webkit-scrollbar {
         width: 6px;
     }
@@ -228,7 +242,14 @@
                     <h6 class="mb-0 fw-bold">Certificate of Completion Issued</h6>
                 </div>
                 <div class="small text-muted mb-2">
-                    <div>Certificate ID: <span class="fw-bold text-dark">{{ order.certificate.cert_id }}</span></div>
+                    <div class="d-flex align-items-center gap-2">
+                        Certificate ID: <span class="fw-bold text-dark" id="cert-id-top">{{ order.certificate.cert_id }}</span>
+                        <button onclick="copyCertId('cert-id-top', this)" 
+                            class="btn btn-sm p-0 border-0 text-muted copy-cert-btn" 
+                            title="Copy Certificate ID" style="line-height:1;">
+                            <i class="bi bi-copy fs-6"></i>
+                        </button>
+                    </div>
                     <div>Issued on: {{ order.certificate.issued_at.strftime('%B %d, %Y') }}</div>
                 </div>
                 {% if current_user.id == order.buyer_id or current_user.id == order.seller_id %}
@@ -362,8 +383,17 @@
                             <i class="bi bi-award-fill fs-2"></i>
                         </div>
                         <h6 class="fw-bold mb-1">Certificate Issued</h6>
-                        <p class="text-muted small mb-3">ID: {{ order.certificate.cert_id }} • {{
-                            order.certificate.issued_at.strftime('%b %d, %Y') }}</p>
+                        <p class="text-muted small mb-3">
+                            <span class="d-inline-flex align-items-center gap-1">
+                                ID: <span id="cert-id-sidebar">{{ order.certificate.cert_id }}</span>
+                                <button onclick="copyCertId('cert-id-sidebar', this)"
+                                    class="btn btn-sm p-0 border-0 text-muted copy-cert-btn"
+                                    title="Copy Certificate ID" style="line-height:1;">
+                                    <i class="bi bi-copy"></i>
+                                </button>
+                            </span>
+                            • {{ order.certificate.issued_at.strftime('%b %d, %Y') }}
+                        </p>
 
                         <a href="{{ url_for('user.download_certificate', cert_id=order.certificate.cert_id) }}"
                             class="btn w-100 py-2 rounded-pill shadow-sm fw-bold text-dark"
@@ -715,7 +745,30 @@
         }, 50);
     });
 
-    function sendMessage() {
+    function copyCertId(elementId, btn) {
+        const text = document.getElementById(elementId).innerText.trim();
+        navigator.clipboard.writeText(text).then(() => {
+            // Swap icon to checkmark
+            const icon = btn.querySelector('i');
+            icon.className = 'bi bi-check-lg text-success fs-6';
+            btn.title = 'Copied!';
+            setTimeout(() => {
+                icon.className = 'bi bi-copy fs-6';
+                btn.classList.remove('text-success');
+                btn.classList.add('text-muted');
+                btn.title = 'Copy Certificate ID';
+            }, 2000);
+        }).catch(() => {
+            // Fallback for older browsers
+            const range = document.createRange();
+            range.selectNode(document.getElementById(elementId));
+            window.getSelection().removeAllRanges();
+            window.getSelection().addRange(range);
+            document.execCommand('copy');
+            window.getSelection().removeAllRanges();
+        });
+    }
+
         const input = document.getElementById('message-input');
         if (!input.value.trim() || orderStatus === 'pending') return;
         socket.emit('send_message', { order_id: orderId, content: input.value.trim() });

@@ -1077,7 +1077,8 @@
         // DOM Manipulation: Creating table rows dynamically
         transactions.forEach(txn => {
             const row = document.createElement('tr');
-            const isCredit = txn.type === 'credit' || txn.description?.toLowerCase().includes('recharge');
+            const desc_lc = (txn.description || '').toLowerCase();
+            const isCredit = txn.type === 'credit' || (!txn.type && (desc_lc.includes('refund') || desc_lc.includes('reversal') || desc_lc.includes('recharge') || desc_lc.includes('payment received') || txn.method === 'refund'));
             const amountClass = isCredit ? 'text-success' : 'text-danger';
             const amountPrefix = isCredit ? '+' : '-';
 
@@ -1130,7 +1131,8 @@
 
         transactions.forEach(txn => {
             const amount = parseFloat(txn.amount) || 0;
-            const isCredit = txn.type === 'credit' || txn.description?.toLowerCase().includes('recharge');
+            const desc_lc = (txn.description || '').toLowerCase();
+            const isCredit = txn.type === 'credit' || (!txn.type && (desc_lc.includes('refund') || desc_lc.includes('reversal') || desc_lc.includes('recharge') || desc_lc.includes('payment received') || txn.method === 'refund'));
 
             if (txn.status === 'success') {
                 successCount++;

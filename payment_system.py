@@ -197,6 +197,14 @@ class PaymentGateway:
         success = random.random() < self.__success_rate
         status = 'success' if success else 'failed'
         
+        # Use IST for all timestamps (Render server runs UTC)
+        try:
+            import pytz
+            ist = pytz.timezone('Asia/Kolkata')
+            now_ist = datetime.now(pytz.utc).astimezone(ist)
+        except Exception:
+            now_ist = datetime.now()
+
         # Create transaction data
         txn_data = {
             'id': txn_id,
@@ -204,10 +212,11 @@ class PaymentGateway:
             'amount': float(amount),
             'method': payment_method,
             'status': status,
+            'type': 'credit',  # add_money / refunds are always credits
             'description': description,
-            'date': datetime.now().strftime('%Y-%m-%d'),
-            'time': datetime.now().strftime('%H:%M:%S'),
-            'timestamp': datetime.now().isoformat()
+            'date': now_ist.strftime('%Y-%m-%d'),
+            'time': now_ist.strftime('%H:%M:%S'),
+            'timestamp': now_ist.isoformat()
         }
         
         # Save transaction to file
@@ -521,6 +530,14 @@ class WalletManager:
         new_balance = current_balance - float(amount)
         self.__save_balance(user, new_balance)
 
+        # Use IST for all timestamps
+        try:
+            import pytz
+            ist = pytz.timezone('Asia/Kolkata')
+            now_ist = datetime.now(pytz.utc).astimezone(ist)
+        except Exception:
+            now_ist = datetime.now()
+
         # Record transaction to transactions.txt
         txn_result = {
             'id': self.payment_gateway.generate_transaction_id(),
@@ -531,9 +548,9 @@ class WalletManager:
             'status': 'success',
             'type': 'debit',
             'description': description,
-            'date': datetime.now().strftime('%Y-%m-%d'),
-            'time': datetime.now().strftime('%H:%M:%S'),
-            'timestamp': datetime.now().isoformat(),
+            'date': now_ist.strftime('%Y-%m-%d'),
+            'time': now_ist.strftime('%H:%M:%S'),
+            'timestamp': now_ist.isoformat(),
             'new_balance': new_balance
         }
 
@@ -564,6 +581,14 @@ class WalletManager:
         new_balance = float(user.wallet_balance or 0.0) + float(amount)
         self.__save_balance(user, new_balance)
 
+        # Use IST for all timestamps
+        try:
+            import pytz
+            ist = pytz.timezone('Asia/Kolkata')
+            now_ist = datetime.now(pytz.utc).astimezone(ist)
+        except Exception:
+            now_ist = datetime.now()
+
         # Record transaction to transactions.txt
         txn_result = {
             'id': transaction_id or self.payment_gateway.generate_transaction_id(),
@@ -574,9 +599,9 @@ class WalletManager:
             'status': 'success',
             'type': 'credit',
             'description': description,
-            'date': datetime.now().strftime('%Y-%m-%d'),
-            'time': datetime.now().strftime('%H:%M:%S'),
-            'timestamp': datetime.now().isoformat(),
+            'date': now_ist.strftime('%Y-%m-%d'),
+            'time': now_ist.strftime('%H:%M:%S'),
+            'timestamp': now_ist.isoformat(),
             'new_balance': new_balance
         }
 
