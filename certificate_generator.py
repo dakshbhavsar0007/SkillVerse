@@ -143,6 +143,79 @@ def draw_certificate(student_name, skill_name,
     return img
 
 
+# ── Public API ──────────────────────────────────────────────────
+
+def generate_cert_id():
+    """
+    Generate a unique certificate ID in the format CERT-XXXXXXXX.
+
+    Returns:
+        str: e.g. 'CERT-A1B2C3D4'
+    """
+    import uuid
+    return f"CERT-{uuid.uuid4().hex[:8].upper()}"
+
+
+def generate_certificate(student_name, skill_name,
+                         provider_name="SkillVerse",
+                         order_id="SV-ORDER-001",
+                         cert_id=None,
+                         template_path=None,
+                         completion_date=None):
+    """
+    Generate a certificate image, save it to disk, and return the saved file path.
+
+    This is the function imported by routes.py. It wraps draw_certificate(),
+    saves the resulting PIL image as a PNG inside the same directory as
+    template_path (or a default 'certificates/' sub-folder next to this file),
+    and returns the absolute path so routes.py can record it in the DB and
+    serve it for download.
+
+    Args:
+        student_name   (str): Full name of the student.
+        skill_name     (str): Name of the completed skill / course.
+        provider_name  (str): Issuing organisation / provider display name.
+        order_id       (str|int): Order reference (stored on the certificate).
+        cert_id        (str|None): Certificate ID; auto-generated if None.
+        template_path  (str|None): Path to a background template image (unused
+                                   by draw_certificate but accepted for
+                                   forward-compatibility). If provided its
+                                   parent directory is used as the output dir.
+        completion_date (str|None): Human-readable date; defaults to today.
+
+    Returns:
+        str: Absolute path to the saved certificate PNG file.
+    """
+    if cert_id is None:
+        cert_id = generate_cert_id()
+
+    if completion_date is None:
+        completion_date = datetime.now().strftime("%d %B %Y")
+
+    # Decide where to save the output file
+    if template_path and os.path.isfile(template_path):
+        output_dir = os.path.dirname(template_path)
+    else:
+        output_dir = os.path.join(BASE_DIR, "static", "certificates")
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    filename = f"{cert_id}.png"
+    output_path = os.path.join(output_dir, filename)
+
+    img = draw_certificate(
+        student_name    = student_name,
+        skill_name      = skill_name,
+        provider_name   = provider_name,
+        order_id        = str(order_id),
+        cert_id         = cert_id,
+        completion_date = completion_date,
+    )
+
+    img.save(output_path)
+    return output_path
+
+
 # ── Test ────────────────────────────────────────────────────────
 if __name__ == "__main__":
     cert = draw_certificate(
