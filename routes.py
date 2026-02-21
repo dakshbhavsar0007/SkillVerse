@@ -813,7 +813,18 @@ def edit(service_id):
                 filename = save_uploaded_file(file)
                 if filename:
                     service.image_url = filename
-        
+
+        # ── Resubmit flow: if this is a previously rejected skill, put it back
+        # into the admin approval queue instead of making it live directly.
+        if service.is_rejected:
+            service.is_rejected = False
+            service.rejection_reason = None
+            service.is_active = False
+            service.pending_approval = True
+            db.session.commit()
+            flash('Skill resubmitted for admin review! You will be notified once it is approved.', 'info')
+            return redirect(url_for('user.dashboard'))
+
         db.session.commit()
         flash('Service updated successfully!', 'success')
         return redirect(url_for('service.detail', service_id=service_id))
@@ -2506,29 +2517,48 @@ def approve_skill(service_id):
 @admin_required
 def reject_skill(service_id):
     """
-    Reject a pending skill — removes it and notifies the provider.
+    Reject a pending skill — marks it rejected, stores reason, and notifies the provider
+    via bell notification AND email so they can edit & resubmit.
     """
     service = Service.query.get_or_404(service_id)
-    reason = request.form.get('reason', 'No reason provided.')
-    provider_id = service.user_id
+    reason = request.form.get('reason', 'No specific reason provided.')
+    provider = service.provider
     service_title = service.title
 
-    # Soft-delete: mark inactive and clear pending flag
+    # Mark as rejected: keep record but flag it clearly
     service.is_active = False
     service.pending_approval = False
+    service.is_rejected = True
+    service.rejection_reason = reason
     db.session.commit()
 
-    # Notify the provider
+    # ── 1. In-app bell notification ───────────────────────────────────────────
     notification = Notification(
-        user_id=provider_id,
+        user_id=provider.id,
         title='❌ Skill Submission Rejected',
-        message=f'Your skill "{service_title}" was not approved. Reason: {reason}. Please review and resubmit.',
-        link=url_for('service.create')
+        message=f'Your skill "{service_title}" was not approved. Reason: {reason}. You can edit and resubmit it from your dashboard.',
+        link=url_for('service.edit', service_id=service.id)
     )
     db.session.add(notification)
     db.session.commit()
 
-    flash(f'Skill "{service_title}" has been rejected and the provider has been notified.', 'warning')
+    # ── 2. Email notification ─────────────────────────────────────────────────
+    try:
+        from email_utils import send_email
+        resubmit_link = 'https://skillverse-oh9z.onrender.com' + url_for('service.edit', service_id=service.id)
+        send_email(
+            subject=f'Your Skill Submission Was Rejected - {service_title}',
+            recipient=provider.email,
+            template='skill_rejected',
+            provider=provider,
+            service_title=service_title,
+            reason=reason,
+            resubmit_link=resubmit_link
+        )
+    except Exception as e:
+        current_app.logger.error(f'Failed to send skill rejection email: {e}')
+
+    flash(f'Skill "{service_title}" has been rejected. The provider has been notified via bell and email.', 'warning')
     return redirect(url_for('admin.pending_skills'))
 
 

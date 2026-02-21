@@ -414,6 +414,8 @@ class Service(db.Model):
     # Status
     is_active = db.Column(db.Boolean, default=True)
     pending_approval = db.Column(db.Boolean, default=False)  # True when awaiting admin approval
+    is_rejected = db.Column(db.Boolean, default=False)       # True when admin rejected the skill
+    rejection_reason = db.Column(db.Text, nullable=True)      # Admin's reason for rejection
     
     # Statistics
     view_count = db.Column(db.Integer, default=0)

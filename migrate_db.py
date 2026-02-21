@@ -52,9 +52,30 @@ def run_migrations(app):
                     ADD COLUMN pending_approval BOOLEAN DEFAULT FALSE
                 """))
                 conn.commit()
-                print("✅ Added pending_approval column to services table")
+                print("OK: Added pending_approval column to services table")
             else:
-                print("✔ pending_approval column already exists")
+                print("OK: pending_approval column already exists")
+
+            # ── 1.6 Add is_rejected and rejection_reason to services ─────────
+            result = conn.execute(text("""
+                SELECT column_name
+                FROM information_schema.columns
+                WHERE table_name = 'services'
+                AND column_name = 'is_rejected'
+            """))
+            if result.fetchone() is None:
+                conn.execute(text("""
+                    ALTER TABLE services
+                    ADD COLUMN is_rejected BOOLEAN DEFAULT FALSE
+                """))
+                conn.execute(text("""
+                    ALTER TABLE services
+                    ADD COLUMN rejection_reason TEXT
+                """))
+                conn.commit()
+                print("OK: Added is_rejected and rejection_reason columns to services table")
+            else:
+                print("OK: is_rejected column already exists")
 
             # ── 2. Create transactions table ─────────────────────────────────
             conn.execute(text("""

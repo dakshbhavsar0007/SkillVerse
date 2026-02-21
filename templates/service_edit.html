@@ -7,8 +7,13 @@
     <!-- Header -->
     <div class="bg-white border-bottom py-5">
         <div class="container fade-in-up">
+            {% if service.is_rejected %}
+            <h1 class="fw-bold mb-2 text-danger"><i class="bi bi-pencil-square me-2"></i>Edit & Resubmit Skill</h1>
+            <p class="text-muted mb-0">Fix the issues below and resubmit for admin review.</p>
+            {% else %}
             <h1 class="fw-bold mb-2">Edit Service</h1>
             <p class="text-muted mb-0">Update your service details and pricing.</p>
+            {% endif %}
         </div>
     </div>
 
@@ -28,6 +33,26 @@
                         </form>
                     </div>
                     <div class="card-body p-4">
+                        <!-- Rejection Feedback Banner -->
+                        {% if service.is_rejected %}
+                        <div class="alert border-0 rounded-4 mb-4 p-4"
+                            style="background: linear-gradient(135deg,#fef2f2,#fee2e2); border-left: 4px solid #ef4444 !important;">
+                            <div class="d-flex align-items-center gap-2 mb-2">
+                                <i class="bi bi-x-octagon-fill text-danger fs-5"></i>
+                                <strong class="text-danger fs-6">This skill was rejected by admin</strong>
+                            </div>
+                            {% if service.rejection_reason %}
+                            <div class="rounded-3 px-3 py-2"
+                                style="background:#fff7ed; border-left:3px solid #f97316; color:#7c2d12;">
+                                <strong style="color:#c2410c;">Admin Feedback:</strong>
+                                "{{ service.rejection_reason }}"
+                            </div>
+                            {% endif %}
+                            <p class="mb-0 mt-2 small text-muted">Please address the feedback above, then click
+                                <strong>Save &amp; Resubmit for Review</strong>.
+                            </p>
+                        </div>
+                        {% endif %}
                         <form method="POST" action="{{ url_for('service.edit', service_id=service.id) }}"
                             class="needs-validation" novalidate enctype="multipart/form-data">
                             <!-- Title -->
@@ -123,12 +148,19 @@
 
                             <!-- Submit Buttons -->
                             <div class="d-flex justify-content-end gap-3">
-                                <a href="{{ url_for('service.detail', service_id=service.id) }}"
+                                <a href="{{ url_for('user.dashboard') }}"
                                     class="btn btn-light rounded-pill px-4 fw-bold">Cancel</a>
+                                {% if service.is_rejected %}
+                                <button type="submit" class="btn rounded-pill px-5 py-3 shadow-sm fw-bold text-white"
+                                    style="background: linear-gradient(135deg,#4f46e5,#7c3aed); border:none;">
+                                    <i class="bi bi-send-fill me-2"></i>Save &amp; Resubmit for Review
+                                </button>
+                                {% else %}
                                 <button type="submit"
                                     class="btn btn-primary rounded-pill px-5 py-3 btn-sweep shadow-sm fw-bold">
                                     Save Changes
                                 </button>
+                                {% endif %}
                             </div>
                         </form>
                     </div>

@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Skill Submission Rejected</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6;
+            color: #1e293b;
+            margin: 0;
+            padding: 0;
+            background-color: #f8fafc;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+            color: white;
+            padding: 40px 30px;
+            text-align: center;
+        }
+
+        .header-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .header h1 {
+            margin: 0;
+            font-size: 26px;
+            font-weight: 700;
+        }
+
+        .content {
+            padding: 40px 30px;
+        }
+
+        .content h2 {
+            color: #1e293b;
+            font-size: 22px;
+            margin-top: 0;
+        }
+
+        .content p {
+            color: #64748b;
+            font-size: 16px;
+            margin: 16px 0;
+        }
+
+        .skill-box {
+            background: #fef2f2;
+            border-left: 4px solid #ef4444;
+            padding: 20px 24px;
+            border-radius: 8px;
+            margin: 24px 0;
+        }
+
+        .skill-box h3 {
+            margin: 0 0 8px 0;
+            color: #1e293b;
+            font-size: 18px;
+        }
+
+        .skill-box .skill-name {
+            font-size: 20px;
+            font-weight: 700;
+            color: #b91c1c;
+            margin: 0 0 8px 0;
+        }
+
+        .reason-box {
+            background: #fff7ed;
+            border-left: 4px solid #f97316;
+            padding: 20px 24px;
+            border-radius: 8px;
+            margin: 24px 0;
+        }
+
+        .reason-box h4 {
+            margin: 0 0 10px 0;
+            color: #c2410c;
+            font-size: 15px;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .reason-box p {
+            margin: 0;
+            color: #1e293b;
+            font-size: 16px;
+            font-style: italic;
+        }
+
+        .tip-box {
+            background: #eff6ff;
+            border-left: 4px solid #3b82f6;
+            padding: 16px 24px;
+            border-radius: 8px;
+            margin: 24px 0;
+        }
+
+        .tip-box p {
+            margin: 0;
+            color: #1e40af;
+            font-size: 14px;
+        }
+
+        .tip-box ul {
+            margin: 8px 0 0 0;
+            padding-left: 20px;
+            color: #1e40af;
+            font-size: 14px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
+            color: white !important;
+            text-decoration: none;
+            padding: 14px 36px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 16px;
+            margin: 20px 0;
+        }
+
+        .footer {
+            background: #f8fafc;
+            padding: 24px 30px;
+            text-align: center;
+            color: #64748b;
+            font-size: 14px;
+            border-top: 1px solid #e2e8f0;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="header-icon">❌</div>
+            <h1>Skill Submission Rejected</h1>
+        </div>
+
+        <div class="content">
+            <h2>Hi {{ provider.username }},</h2>
+
+            <p>Thank you for submitting your skill to SkillVerse. After reviewing your submission, our admin team
+                has decided that it does not meet our current listing standards.</p>
+
+            <div class="skill-box">
+                <h3>Rejected Skill</h3>
+                <p class="skill-name">{{ service_title }}</p>
+            </div>
+
+            <div class="reason-box">
+                <h4>📋 Reason for Rejection</h4>
+                <p>"{{ reason }}"</p>
+            </div>
+
+            <div class="tip-box">
+                <p><strong>💡 What you can do next:</strong></p>
+                <ul>
+                    <li>Review the feedback above carefully</li>
+                    <li>Update your skill title, description, pricing, or images</li>
+                    <li>Click the button below to edit and resubmit your skill</li>
+                    <li>Your updated skill will be reviewed by our team again</li>
+                </ul>
+            </div>
+
+            <p>Don't be discouraged! Many great skills need a small revision before going live. We look forward
+                to seeing your updated submission.</p>
+
+            <center>
+                <a href="{{ resubmit_link }}" class="cta-button">✏️ Edit &amp; Resubmit Skill</a>
+            </center>
+
+            <p style="margin-top: 30px; font-size: 14px; color: #94a3b8;">
+                If you have any questions or feel this rejection was made in error, please contact our support
+                team at <a href="mailto:admin@skillverse.com" style="color: #4f46e5;">admin@skillverse.com</a>.
+            </p>
+        </div>
+
+        <div class="footer">
+            <p><strong>SkillVerse</strong><br>Connecting talent with opportunity</p>
+            <p style="margin-top: 12px;">© 2025 SkillVerse. All rights reserved.</p>
+            <p style="margin-top: 8px; font-size: 12px; color: #94a3b8;">
+                <a href="https://skillverse-oh9z.onrender.com"
+                    style="color: #4f46e5; text-decoration: none;">skillverse-oh9z.onrender.com</a>
+            </p>
+        </div>
+    </div>
+</body>
+
+</html>
