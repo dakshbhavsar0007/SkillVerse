@@ -191,7 +191,7 @@ def index():
     skills_score = min(active_services / 50.0, 1.0) * 100
 
     # Component 4 – Provider average rating (30%)
-    providers = User.query.filter_by(role='provider').all()
+    providers = User.query.filter_by(user_type='provider').all()
     if providers:
         provider_ratings = [u.get_average_rating() for u in providers if u.get_average_rating() > 0]
         avg_p = sum(provider_ratings) / len(provider_ratings) if provider_ratings else 4.0
