@@ -87,21 +87,16 @@ def run_migrations(app):
             conn.commit()
             print("✅ transactions table ready")
 
-            # ── 3. Create certificates table ──────────────────────────────────
-            conn.execute(text("""
-                CREATE TABLE IF NOT EXISTS certificates (
-                    id           SERIAL PRIMARY KEY,
-                    cert_id      VARCHAR(20) UNIQUE NOT NULL,
-                    order_id     INTEGER UNIQUE NOT NULL REFERENCES orders(id),
-                    student_id   INTEGER NOT NULL REFERENCES users(id),
-                    provider_id  INTEGER NOT NULL REFERENCES users(id),
-                    skill_name   VARCHAR(200) NOT NULL,
-                    pdf_filename VARCHAR(255) NOT NULL,
-                    issued_at    TIMESTAMP DEFAULT NOW()
-                )
-            """))
-            conn.commit()
-            print("✅ certificates table ready")
+            # ── 3. Create certificates table (dialect-safe via SQLAlchemy) ─────
+            # Using db.create_all() is safer than raw SQL because it handles
+            # both SQLite (local dev) and PostgreSQL (Render production)
+            # automatically without dialect-specific keywords like SERIAL.
+            try:
+                db.create_all()
+                conn.commit()
+                print("OK: certificates table ready (via db.create_all)")
+            except Exception as ce:
+                print("WARNING: db.create_all for certificates had an issue:", ce)
 
         print("All migrations complete ✅")
 

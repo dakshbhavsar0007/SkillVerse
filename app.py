@@ -147,6 +147,10 @@ def create_app(config_name='default'):
     if upload_folder and not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
     
+    # Ensure static/certificates directory always exists (needed for PDF generation)
+    certs_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static', 'certificates')
+    os.makedirs(certs_dir, exist_ok=True)
+    
     # Create database tables
     with app.app_context():
         db.create_all()
