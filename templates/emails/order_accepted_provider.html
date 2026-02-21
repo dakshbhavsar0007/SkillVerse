@@ -176,7 +176,7 @@
                 touch and provide updates.</p>
 
             <center>
-                <a href="{{ url_for('user.order_detail', order_id=order.id, _external=True) }}" class="cta-button">Go to
+                <a href="{{ base_url }}/user/order/{{ order.id }}" class="cta-button">Go to
                     Order</a>
             </center>
 

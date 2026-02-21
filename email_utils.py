@@ -1,236 +1,289 @@
 """
 Email Utility Module for SkillVerse
 
-This module handles all email sending functionality using SendGrid's HTTP Web API.
-Switched from Flask-Mail SMTP to SendGrid HTTP API to fix Render.com port 587 blocking.
+Sends transactional emails via SendGrid HTTP API (port 443, always open on Render).
 
-WHY THIS CHANGE:
-- Render.com free/starter tier blocks outbound SMTP (port 587/465) → [Errno 110] Connection timed out
-- SendGrid HTTP API uses port 443 (HTTPS) which is always open on Render
-- More reliable delivery and better error reporting
+Anti-spam measures implemented:
+- Named sender: "SkillVerse Team <noreply@...>" instead of bare address
+- Plain-text alternative for every email (HTML-only emails score badly with filters)
+- List-Unsubscribe header so Gmail/Outlook don't flag bulk-style messages
+- Descriptive subject lines (no ALL CAPS, no spam trigger words)
+- All links use the production Render URL, not localhost
 """
 
 import os
-import sendgrid
-from sendgrid.helpers.mail import Mail, To
-from flask import render_template, current_app
+import re
 from threading import Thread
+
+import sendgrid
+from sendgrid.helpers.mail import Mail, Content, MimeType
+from flask import render_template, current_app
+
+# ── Production base URL (used for all external links in emails) ───────────────
+APP_BASE_URL = "https://skillverse-oh9z.onrender.com"
+
+
+def _base_url():
+    """Return the production base URL, falling back to env var if set."""
+    return os.environ.get("APP_BASE_URL", APP_BASE_URL).rstrip("/")
 
 
 def _get_sg_client():
-    """Get a configured SendGrid client using SENDGRID_API_KEY env var"""
-    api_key = os.environ.get('SENDGRID_API_KEY') or current_app.config.get('SENDGRID_API_KEY')
+    """Return a configured SendGrid client."""
+    api_key = os.environ.get("SENDGRID_API_KEY") or current_app.config.get("SENDGRID_API_KEY")
     if not api_key:
         raise ValueError("SENDGRID_API_KEY environment variable is not set")
     return sendgrid.SendGridAPIClient(api_key=api_key)
 
 
-def _get_default_sender():
-    """Get the configured default sender email"""
-    sender = os.environ.get('MAIL_DEFAULT_SENDER') or current_app.config.get('MAIL_DEFAULT_SENDER', 'noreply@skillverse.com')
-    # Flask-Mail format: "Name <email@example.com>" → extract just email for SendGrid
-    # SendGrid accepts both plain "email@example.com" and tuple ("Name", "email")
-    return sender
+def _get_named_sender():
+    """
+    Return sender as 'SkillVerse Team <address>'.
+    A named sender dramatically reduces spam-filter scores.
+    """
+    raw = (
+        os.environ.get("MAIL_DEFAULT_SENDER")
+        or current_app.config.get("MAIL_DEFAULT_SENDER", "noreply@skillverse.com")
+    )
+    # If already a tuple/dict keep it; if format "Name <email>" keep it too.
+    if "<" in str(raw):
+        return raw
+    return ("SkillVerse Team", raw)
+
+
+def _html_to_text(html: str) -> str:
+    """Very simple HTML → plain-text strip for the text/plain alternative."""
+    text = re.sub(r"<[^>]+>", " ", html)
+    text = re.sub(r"&amp;",  "&",  text)
+    text = re.sub(r"&lt;",   "<",  text)
+    text = re.sub(r"&gt;",   ">",  text)
+    text = re.sub(r"&nbsp;", " ",  text)
+    text = re.sub(r"\s{2,}", " ",  text)
+    return text.strip()
 
 
 def send_async_email(app, subject, recipient, html_content, sender):
     """
     Send email in a background thread via SendGrid HTTP API.
-
-    Args:
-        app: Flask application instance
-        subject (str): Email subject
-        recipient (str): Recipient email address
-        html_content (str): Rendered HTML body
-        sender (str): Sender email/name string
+    Includes plain-text alternative and anti-spam headers.
     """
     with app.app_context():
         try:
             sg = _get_sg_client()
-            message = Mail(
-                from_email=sender,
-                to_emails=recipient,
-                subject=subject,
-                html_content=html_content
-            )
+
+            plain_text = _html_to_text(html_content)
+
+            # Build message with both HTML and plain-text parts
+            message = Mail()
+            message.from_email = sender
+            message.to = recipient
+            message.subject = subject
+
+            # text/plain first (recommended order for deliverability)
+            message.content = [
+                Content(MimeType.text, plain_text),
+                Content(MimeType.html, html_content),
+            ]
+
+            # Anti-spam: List-Unsubscribe header
+            unsubscribe_url = f"{_base_url()}/unsubscribe?email={recipient}"
+            message.header = [
+                sendgrid.helpers.mail.Header(
+                    "List-Unsubscribe",
+                    f"<{unsubscribe_url}>"
+                ),
+                sendgrid.helpers.mail.Header(
+                    "List-Unsubscribe-Post",
+                    "List-Unsubscribe=One-Click"
+                ),
+                sendgrid.helpers.mail.Header(
+                    "X-Mailer",
+                    "SkillVerse Mailer 1.0"
+                ),
+            ]
+
             response = sg.send(message)
             if response.status_code not in (200, 202):
                 app.logger.error(
-                    f"SendGrid returned unexpected status {response.status_code}: {response.body}"
+                    f"SendGrid {response.status_code}: {response.body}"
                 )
+            else:
+                app.logger.info(f"Email sent to {recipient}: {subject}")
         except Exception as e:
-            app.logger.error(f"Failed to send email via SendGrid HTTP API: {str(e)}")
+            app.logger.error(f"Failed to send email via SendGrid: {e}")
 
 
 def send_email(subject, recipient, template, **kwargs):
     """
-    Send HTML email using template via SendGrid HTTP API.
+    Render an HTML email template and queue it for delivery.
+
+    All templates receive `base_url` in their context so they can build
+    absolute links without relying on url_for(_external=True) which generates
+    http://localhost on Render.
 
     Args:
-        subject (str): Email subject line
-        recipient (str): Recipient email address
-        template (str): Template file name (without .html extension)
-        **kwargs: Additional context variables for the template
-
-    Returns:
-        bool: True if email queued successfully, False otherwise
+        subject   : Email subject
+        recipient : Recipient address
+        template  : Template name (without .html), inside templates/emails/
+        **kwargs  : Additional Jinja2 context variables
     """
     try:
         app = current_app._get_current_object()
 
-        # Render the HTML template
-        html_content = render_template(f'emails/{template}.html', **kwargs)
-        sender = _get_default_sender()
+        # Inject base_url so every template can build correct production links
+        kwargs.setdefault("base_url", _base_url())
 
-        # Send asynchronously to avoid blocking the request
+        html_content = render_template(f"emails/{template}.html", **kwargs)
+        sender = _get_named_sender()
+
         Thread(
             target=send_async_email,
-            args=(app, subject, recipient, html_content, sender)
+            args=(app, subject, recipient, html_content, sender),
+            daemon=True,
         ).start()
 
         return True
     except Exception as e:
         import traceback
         traceback.print_exc()
-        current_app.logger.error(f"Error queuing email '{subject}' to {recipient}: {str(e)}")
+        current_app.logger.error(f"Error queuing email '{subject}' to {recipient}: {e}")
         return False
 
 
-# ─── All public helper functions below are unchanged ─────────────────────────
+# ─────────────────────────────────────────────────────────────────────────────
+# Public helper functions
+# ─────────────────────────────────────────────────────────────────────────────
 
 def send_welcome_email(user):
-    """Send welcome email to new user"""
+    """Send welcome email to new user."""
     return send_email(
-        subject='Welcome to SkillVerse',
+        subject="Welcome to SkillVerse!",
         recipient=user.email,
-        template='welcome',
-        user=user
+        template="welcome",
+        user=user,
     )
 
 
 def send_order_placed_emails(order):
-    """Send order placement confirmation emails to both customer and provider"""
+    """Notify buyer and seller when an order is placed."""
     send_email(
-        subject='Your order has been sent successfully',
+        subject="Your order has been placed on SkillVerse",
         recipient=order.buyer.email,
-        template='order_placed_customer',
+        template="order_placed_customer",
         order=order,
         customer=order.buyer,
         provider=order.seller,
-        service=order.service
+        service=order.service,
     )
     send_email(
-        subject='New order received',
+        subject="You have a new order on SkillVerse",
         recipient=order.seller.email,
-        template='order_placed_provider',
+        template="order_placed_provider",
         order=order,
         customer=order.buyer,
         provider=order.seller,
-        service=order.service
+        service=order.service,
     )
 
 
 def send_order_accepted_emails(order):
-    """Send order acceptance confirmation emails to both customer and provider"""
+    """Notify buyer and seller when an order is accepted."""
     send_email(
-        subject='Your order has been accepted',
+        subject="Your order has been accepted",
         recipient=order.buyer.email,
-        template='order_accepted_customer',
+        template="order_accepted_customer",
         order=order,
         customer=order.buyer,
         provider=order.seller,
-        service=order.service
+        service=order.service,
     )
     send_email(
-        subject='Order accepted successfully',
+        subject="Order accepted — let's get started!",
         recipient=order.seller.email,
-        template='order_accepted_provider',
+        template="order_accepted_provider",
         order=order,
         customer=order.buyer,
         provider=order.seller,
-        service=order.service
+        service=order.service,
     )
 
 
 def send_order_completed_emails(order):
-    """Send order completion emails to both customer and provider"""
+    """Notify buyer and seller when an order is completed."""
     send_email(
-        subject='Your order has been completed',
+        subject="Your order is complete — download your certificate",
         recipient=order.buyer.email,
-        template='order_completed_customer',
+        template="order_completed_customer",
         order=order,
         customer=order.buyer,
         provider=order.seller,
-        service=order.service
+        service=order.service,
     )
     send_email(
-        subject='Order marked as completed',
+        subject="Order marked as complete",
         recipient=order.seller.email,
-        template='order_completed_provider',
+        template="order_completed_provider",
         order=order,
         customer=order.buyer,
         provider=order.seller,
-        service=order.service
+        service=order.service,
     )
 
 
 def send_booking_confirmation_email(booking):
-    """Send booking confirmation email to customer"""
-    from flask import url_for
-
-    start_time = booking.slot.start_time.strftime('%Y-%m-%d %H:%M UTC')
-    service_title = booking.service.title if booking.service else 'General Session'
-    link = url_for('user.bookings_list', _external=True)
+    """Send booking confirmation to the student/client."""
+    base = _base_url()
+    start_time = booking.slot.start_time.strftime("%Y-%m-%d %H:%M UTC")
+    service_title = booking.service.title if booking.service else "General Session"
+    link = f"{base}/user/bookings"
 
     send_email(
-        subject='Booking Confirmed!',
+        subject="Booking Confirmed on SkillVerse",
         recipient=booking.client.email,
-        template='booking_confirmation',
+        template="booking_confirmation",
         customer=booking.client,
         provider=booking.slot.provider,
         start_time=start_time,
         service_title=service_title,
         order_id=booking.order_id,
-        link=link
+        link=link,
     )
 
 
 def send_booking_rejection_email(booking):
-    """Send booking rejection email to customer"""
-    from flask import url_for
-
-    start_time = booking.slot.start_time.strftime('%Y-%m-%d %H:%M UTC')
-    service_title = booking.service.title if booking.service else 'General Session'
+    """Notify client that their booking was rejected."""
+    base = _base_url()
+    start_time = booking.slot.start_time.strftime("%Y-%m-%d %H:%M UTC")
+    service_title = booking.service.title if booking.service else "General Session"
 
     if booking.order_id:
-        link = url_for('user.order_detail', order_id=booking.order_id, _external=True)
+        link = f"{base}/user/order/{booking.order_id}"
     elif booking.service_id:
-        link = url_for('service.detail', service_id=booking.service_id, _external=True)
+        link = f"{base}/service/{booking.service_id}"
     else:
-        link = url_for('service.browse', _external=True)
+        link = f"{base}/service/browse"
 
     send_email(
-        subject='Action Required: Booking Request Rejected',
+        subject="Your booking request was not accepted",
         recipient=booking.client.email,
-        template='booking_rejection',
+        template="booking_rejection",
         customer=booking.client,
         provider=booking.slot.provider,
         start_time=start_time,
         service_title=service_title,
-        link=link
+        link=link,
     )
 
 
 def send_password_reset_email(user, token):
-    """Send password reset email to user"""
-    from flask import url_for
-
-    link = url_for('auth.reset_password_token', token=token, _external=True)
+    """Send password reset link to user."""
+    base = _base_url()
+    link = f"{base}/auth/reset-password/{token}"
 
     return send_email(
-        subject='Reset Your Password - SkillVerse',
+        subject="Reset your SkillVerse password",
         recipient=user.email,
-        template='reset_password',
+        template="reset_password",
         user=user,
-        link=link
+        link=link,
     )

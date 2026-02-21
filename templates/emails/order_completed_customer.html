@@ -169,7 +169,7 @@
                 <p style="color: #1a1a4e; margin: 10px 0;">Certificate ID: <strong>{{ order.certificate.cert_id
                         }}</strong></p>
 
-                <a href="{{ url_for('user.download_certificate', cert_id=order.certificate.cert_id, _external=True) }}"
+                <a href="{{ base_url }}/user/certificate/{{ order.certificate.cert_id }}/download"
                     style="display: inline-block; background: linear-gradient(135deg, #FFD700 0%, #FDB931 100%); color: #1a1a4e; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: bold; margin: 16px 0;">
                     Download Your Certificate
                 </a>
@@ -206,8 +206,7 @@
                 <p>Your feedback helps other users make informed decisions and helps providers improve their services.
                 </p>
                 <center>
-                    <a href="{{ url_for('service.detail', service_id=service.id, _external=True) }}#reviews"
-                        class="cta-button">Leave a Review ⭐</a>
+                    <a href="{{ base_url }}/service/{{ service.id }}#reviews" class="cta-button">Leave a Review ⭐</a>
                 </center>
             </div>
 
@@ -217,7 +216,7 @@
             </p>
 
             <center style="margin-top: 24px;">
-                <a href="{{ url_for('service.browse', _external=True) }}" class="secondary-button">Browse More
+                <a href="{{ base_url }}/service/browse" class="secondary-button">Browse More
                     Services</a>
             </center>
         </div>

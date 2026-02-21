@@ -179,7 +179,7 @@
             </div>
 
             <center>
-                <a href="{{ url_for('user.order_detail', order_id=order.id, _external=True) }}" class="cta-button">View
+                <a href="{{ base_url }}/user/order/{{ order.id }}" class="cta-button">View
                     Order & Chat</a>
             </center>
 
