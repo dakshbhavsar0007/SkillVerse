@@ -144,41 +144,78 @@ def provider_required(f):
 @main_bp.route('/')
 def index():
     """
-    Landing page route
-    
-    Displays:
-    - Hero section
-    - Categories
-    - Featured services
-    - How it works
-    - Testimonials
-    - CTA
-    
-    Returns:
-        Rendered template
+    Landing page route.
+    The satisfaction rate is calculated in real-time from live DB data.
     """
     # Get featured services using ServiceManager
     featured_services = service_manager.get_featured_services(limit=4)
-    
+
     # Get all categories
     categories = category_manager.get_all_categories()
-    
+
     # Get category stats
     category_stats = category_manager.get_category_stats()
-    
-    # Get stats for home page
+
+    # ── Real-time Stats ───────────────────────────────────────────────────────
     stats_data = {
-        'total_users': User.query.count(),
+        'total_users':    User.query.count(),
         'total_services': Service.query.filter_by(is_active=True).count(),
-        'total_reviews': Review.query.count()
+        'total_reviews':  Review.query.count(),
     }
-    
+
+    # ── Platform Satisfaction Rate (real-time) ────────────────────────────────
+    # Same weighted formula used on individual profiles, applied platform-wide:
+    #   40% overall testimonial rating (all active testimonials)
+    #   20% average skill-review rating across all services
+    #   10% breadth of active services (capped at 50 → 100%)
+    #   30% average provider rating platform-wide
+
+    # Component 1 – Testimonials (40%)
+    all_testimonials = Testimonial.query.filter_by(is_active=True).all()
+    if all_testimonials:
+        avg_t = sum(t.rating for t in all_testimonials) / len(all_testimonials)
+        testimonial_score = (avg_t / 5.0) * 100
+    else:
+        testimonial_score = 80.0  # sensible default before any reviews exist
+
+    # Component 2 – Skill Reviews (20%)
+    all_reviews = Review.query.all()
+    if all_reviews:
+        avg_r = sum(r.rating for r in all_reviews) / len(all_reviews)
+        review_score = (avg_r / 5.0) * 100
+    else:
+        review_score = 80.0
+
+    # Component 3 – Active service breadth (10%) — capped at 50 services = 100%
+    active_services = Service.query.filter_by(is_active=True).count()
+    skills_score = min(active_services / 50.0, 1.0) * 100
+
+    # Component 4 – Provider average rating (30%)
+    providers = User.query.filter_by(role='provider').all()
+    if providers:
+        provider_ratings = [u.get_average_rating() for u in providers if u.get_average_rating() > 0]
+        avg_p = sum(provider_ratings) / len(provider_ratings) if provider_ratings else 4.0
+        provider_score = (avg_p / 5.0) * 100
+    else:
+        provider_score = 80.0
+
+    satisfaction_rate = round(min(max(
+        0.40 * testimonial_score +
+        0.20 * review_score +
+        0.10 * skills_score +
+        0.30 * provider_score,
+        0), 100), 1)
+    # ─────────────────────────────────────────────────────────────────────────
+
+    _testimonials = Testimonial.query.filter_by(is_active=True).order_by(Testimonial.created_at.desc()).all()
+
     return render_template('index.html',
-                         featured_services=featured_services,
-                         categories=categories,
-                         category_stats=category_stats,
-                         stats_data=stats_data,
-                         testimonials=Testimonial.query.filter_by(is_active=True).order_by(Testimonial.created_at.desc()).all())
+                           featured_services=featured_services,
+                           categories=categories,
+                           category_stats=category_stats,
+                           stats_data=stats_data,
+                           satisfaction_rate=satisfaction_rate,
+                           testimonials=_testimonials)
 
 
 @main_bp.route('/testimonials/add', methods=['POST'])
@@ -2560,6 +2597,37 @@ def reject_skill(service_id):
 
     flash(f'Skill "{service_title}" has been rejected. The provider has been notified via bell and email.', 'warning')
     return redirect(url_for('admin.pending_skills'))
+
+
+# ============================================================================
+# ADMIN: TESTIMONIALS MANAGEMENT
+# ============================================================================
+
+@admin_bp.route('/testimonials')
+@admin_required
+def testimonials():
+    """View and manage all testimonials."""
+    all_testimonials = Testimonial.query.order_by(Testimonial.created_at.desc()).all()
+    return render_template('admin/testimonials.html', testimonials=all_testimonials)
+
+
+@admin_bp.route('/testimonials/<int:testimonial_id>/delete', methods=['POST'])
+@admin_required
+def delete_testimonial(testimonial_id):
+    """
+    Remove a testimonial.
+    - Hard delete → permanently removes the row.
+    - The index page uses this via the inline forms on testimonial cards.
+    After deletion, redirect back to the referring page (homepage or admin panel).
+    """
+    testimonial = Testimonial.query.get_or_404(testimonial_id)
+    db.session.delete(testimonial)
+    db.session.commit()
+    flash('Testimonial removed successfully.', 'success')
+
+    # Go back to wherever the request came from
+    referrer = request.referrer or url_for('admin.testimonials')
+    return redirect(referrer)
 
 
 @admin_bp.route('/bookings')

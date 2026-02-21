@@ -252,7 +252,8 @@
                     </div>
                     <div class="col-12 col-md-4">
                         <div class="stat-card">
-                            <div class="h2 fw-bold gradient-text mb-0">99%</div>
+                            <div class="h2 fw-bold gradient-text mb-0 counter" id="satisfactionCounter"
+                                data-target="{{ satisfaction_rate }}" data-suffix="%">0%</div>
                             <div class="text-muted small">Satisfaction Rate</div>
                         </div>
                     </div>
@@ -527,7 +528,7 @@
                                             testimonial.content | truncate(160) }}"</p>
                                     </div>
 
-                                    <!-- Footer: User & Button -->
+                                    <!-- Footer: User & Buttons -->
                                     <div
                                         class="d-flex align-items-center justify-content-between mt-auto pt-4 border-top">
                                         <!-- User Info -->
@@ -547,16 +548,29 @@
                                             </div>
                                         </div>
 
-                                        <!-- Read Full Story Button -->
-                                        <button type="button"
-                                            class="btn btn-sm btn-light rounded-pill px-3 py-2 fw-medium border shadow-sm"
-                                            data-name="{{ testimonial.user.full_name or testimonial.user.username }}"
-                                            data-content="{{ testimonial.content }}"
-                                            data-avatar="{{ testimonial.user.get_avatar_url() }}"
-                                            data-role="{{ testimonial.role or 'Member' }}"
-                                            data-rating="{{ testimonial.rating }}" onclick="openTestimonialModal(this)">
-                                            Read Story
-                                        </button>
+                                        <div class="d-flex gap-2 align-items-center">
+                                            <!-- Read Full Story Button -->
+                                            <button type="button"
+                                                class="btn btn-sm btn-light rounded-pill px-3 py-2 fw-medium border shadow-sm"
+                                                data-name="{{ testimonial.user.full_name or testimonial.user.username }}"
+                                                data-content="{{ testimonial.content }}"
+                                                data-avatar="{{ testimonial.user.get_avatar_url() }}"
+                                                data-role="{{ testimonial.role or 'Member' }}"
+                                                data-rating="{{ testimonial.rating }}"
+                                                onclick="openTestimonialModal(this)">
+                                                Read Story
+                                            </button>
+                                            {% if current_user.is_authenticated and current_user.is_admin() %}
+                                            <form method="POST"
+                                                action="{{ url_for('admin.delete_testimonial', testimonial_id=testimonial.id) }}"
+                                                onsubmit="return confirm('Remove this testimonial?')">
+                                                <button type="submit"
+                                                    class="btn btn-sm btn-outline-danger rounded-pill px-3 py-2 fw-medium">
+                                                    <i class="bi bi-trash me-1"></i>Remove
+                                                </button>
+                                            </form>
+                                            {% endif %}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -718,9 +732,22 @@
                                     <div class="d-flex justify-content-between align-items-center mb-1">
                                         <h6 class="fw-bold mb-0">{{ testimonial.user.full_name or
                                             testimonial.user.username }}</h6>
-                                        <div class="text-warning small d-flex">
-                                            {% for i in range(testimonial.rating) %}<i class="bi bi-star-fill"></i>{%
-                                            endfor %}
+                                        <div class="d-flex align-items-center gap-2">
+                                            <div class="text-warning small d-flex">
+                                                {% for i in range(testimonial.rating) %}<i
+                                                    class="bi bi-star-fill"></i>{% endfor %}
+                                            </div>
+                                            {% if current_user.is_authenticated and current_user.is_admin() %}
+                                            <form method="POST"
+                                                action="{{ url_for('admin.delete_testimonial', testimonial_id=testimonial.id) }}"
+                                                onsubmit="return confirm('Remove this testimonial?')" class="mb-0">
+                                                <button type="submit"
+                                                    class="btn btn-sm btn-outline-danger rounded-pill px-2 py-0"
+                                                    style="font-size:0.75rem;">
+                                                    <i class="bi bi-trash"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
                                         </div>
                                     </div>
                                     <div class="mb-2">
@@ -1203,13 +1230,15 @@
         }
     });
 
-    // Counter Animation
+    // Counter Animation — supports floats and data-suffix (e.g. "%")
     document.addEventListener('DOMContentLoaded', function () {
         var counters = document.querySelectorAll('.counter');
         for (var i = 0; i < counters.length; i++) {
             (function (counter) {
-                var target = parseInt(counter.getAttribute('data-target'));
+                var target = parseFloat(counter.getAttribute('data-target'));
+                var suffix = counter.getAttribute('data-suffix') || '';
                 if (isNaN(target)) return;
+                var isDecimal = (target % 1 !== 0);
                 var duration = 2000;
                 var step = target / (duration / 16);
                 var current = 0;
@@ -1217,10 +1246,14 @@
                 function updateCounter() {
                     current += step;
                     if (current < target) {
-                        counter.textContent = Math.floor(current);
+                        counter.textContent = isDecimal
+                            ? current.toFixed(1) + suffix
+                            : Math.floor(current) + suffix;
                         requestAnimationFrame(updateCounter);
                     } else {
-                        counter.textContent = target;
+                        counter.textContent = isDecimal
+                            ? target.toFixed(1) + suffix
+                            : target + suffix;
                     }
                 }
                 updateCounter();
