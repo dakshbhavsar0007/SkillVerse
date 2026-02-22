@@ -119,6 +119,21 @@ def run_migrations(app):
             except Exception as ce:
                 print("WARNING: db.create_all for certificates had an issue:", ce)
 
+            # ── 3b. Add pdf_url to certificates (Cloudinary persistent URL) ──
+            try:
+                _r = conn.execute(text(
+                    "SELECT column_name FROM information_schema.columns "
+                    "WHERE table_name='certificates' AND column_name='pdf_url'"
+                ))
+                if _r.fetchone() is None:
+                    conn.execute(text("ALTER TABLE certificates ADD COLUMN pdf_url VARCHAR(500)"))
+                    conn.commit()
+                    print("OK: Added pdf_url column to certificates")
+                else:
+                    print("OK: pdf_url column already exists")
+            except Exception as _m:
+                print(f"NOTE: pdf_url migration skipped: {_m}")
+
         print("All migrations complete ✅")
 
     # ── 4. Create required directories ─────────────────────────────────

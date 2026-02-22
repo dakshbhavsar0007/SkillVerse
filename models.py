@@ -866,6 +866,7 @@ class Certificate(db.Model):
     provider_id  = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     skill_name   = db.Column(db.String(200), nullable=False)
     pdf_filename = db.Column(db.String(255), nullable=False)
+    pdf_url      = db.Column(db.String(500), nullable=True)
     issued_at    = db.Column(db.DateTime, default=datetime.utcnow)
 
     # Relationships

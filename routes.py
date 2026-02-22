@@ -218,6 +218,24 @@ def index():
                            testimonials=_testimonials)
 
 
+@main_bp.route('/testimonials/<int:testimonial_id>/delete', methods=['POST'])
+@login_required
+def delete_testimonial_quick(testimonial_id):
+    """Admin-only: delete a testimonial directly from the homepage (AJAX or form POST)."""
+    if not current_user.is_admin():
+        if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+            return jsonify({'success': False, 'error': 'Admin access required.'}), 403
+        flash('Admin access required.', 'danger')
+        return redirect(url_for('main.index'))
+    testimonial = Testimonial.query.get_or_404(testimonial_id)
+    db.session.delete(testimonial)
+    db.session.commit()
+    if request.is_json or request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+        return jsonify({'success': True})
+    flash('Testimonial removed.', 'success')
+    return redirect(url_for('main.index', _anchor='testimonials'))
+
+
 @main_bp.route('/testimonials/add', methods=['POST'])
 @login_required
 def add_testimonial():
@@ -1798,7 +1816,6 @@ def complete_order(order_id):
             provider_name   = provider.full_name or provider.username,
             order_id        = order.id,
             cert_id         = cert_id,
-            template_path   = os.path.join(current_app.root_path, 'static', 'certificate_template.png'),
         )
 
         # ── 3. Save cert record to DB ─────────────────────────────────────
@@ -1844,9 +1861,11 @@ def download_certificate(cert_id):
     """
     Serves the certificate PDF.
     Only the student (buyer) or the provider or admin can download it.
+    If the local file is missing (Render ephemeral disk cleared on redeploy),
+    the certificate is regenerated on-the-fly from DB data.
     """
     from flask import send_file, abort
-    
+
     cert = Certificate.query.filter_by(cert_id=cert_id).first_or_404()
 
     # Access control
@@ -1858,12 +1877,31 @@ def download_certificate(cert_id):
     if not allowed:
         abort(403)
 
-    BASE_DIR   = os.path.abspath(os.path.dirname(__file__))
-    certs_dir  = os.path.join(BASE_DIR, 'static', 'certificates')
-    pdf_path   = os.path.join(certs_dir, cert.pdf_filename)
+    BASE_DIR  = os.path.abspath(os.path.dirname(__file__))
+    certs_dir = os.path.join(BASE_DIR, 'static', 'certificates')
+    os.makedirs(certs_dir, exist_ok=True)
+    pdf_path  = os.path.join(certs_dir, cert.pdf_filename)
 
+    # ── Regenerate if missing (ephemeral disk wiped on Render redeploy) ──────
     if not os.path.exists(pdf_path):
-        abort(404)
+        try:
+            student  = User.query.get(cert.student_id)
+            provider = User.query.get(cert.provider_id)
+            student_name  = (student.full_name  or student.username)  if student  else 'Student'
+            provider_name = (provider.full_name or provider.username) if provider else 'SkillVerse'
+
+            pdf_path = generate_certificate(
+                student_name  = student_name,
+                skill_name    = cert.skill_name,
+                provider_name = provider_name,
+                order_id      = cert.order_id,
+                cert_id       = cert.cert_id,
+                completion_date = cert.issued_at.strftime('%d %B %Y'),
+            )
+            print(f'[Certificate] Regenerated missing PDF: {pdf_path}')
+        except Exception as regen_err:
+            print(f'[Certificate] Regeneration failed: {regen_err}')
+            abort(500)
 
     return send_file(
         pdf_path,
@@ -1885,6 +1923,9 @@ def get_order_certificate(order_id):
         'cert_id'     : cert.cert_id,
         'issued_at'   : cert.issued_at.strftime('%B %d, %Y'),
         'download_url': url_for('user.download_certificate', cert_id=cert.cert_id),
+        'verify_url'  : f'/verify?cert_id={cert.cert_id}',
+        'student_name': (cert.student.full_name or cert.student.username) if cert.student else '',
+        'skill_name'  : cert.skill_name,
     })
 
 
@@ -2659,6 +2700,29 @@ def messages():
 # ============================================================================
 # API ROUTES (JSON)
 # ============================================================================
+
+@api_bp.route('/certificate/order/<int:order_id>')
+@login_required
+def api_cert_for_order(order_id):
+    """
+    Alias at /api/certificate/order/<id>.
+    The frontend eye-button JS calls this URL directly.
+    The actual route lives at /user/api/certificate/order/<id> (user_bp prefix),
+    so this alias bridges the gap.
+    """
+    cert = Certificate.query.filter_by(order_id=order_id).first()
+    if not cert:
+        return jsonify({'exists': False})
+    return jsonify({
+        'exists'      : True,
+        'cert_id'     : cert.cert_id,
+        'issued_at'   : cert.issued_at.strftime('%B %d, %Y'),
+        'download_url': url_for('user.download_certificate', cert_id=cert.cert_id),
+        'verify_url'  : f'/verify?cert_id={cert.cert_id}',
+        'student_name': (cert.student.full_name or cert.student.username) if cert.student else '',
+        'skill_name'  : cert.skill_name,
+    })
+
 
 @api_bp.route('/search/autocomplete')
 def search_autocomplete():
