@@ -85,10 +85,10 @@
                                     class="btn btn-sm btn-outline-primary" title="Download">
                                     <i class="bi bi-download"></i>
                                 </a>
-                                <a href="{{ url_for('main.verify_certificate_page', cert_id=cert.cert_id) }}"
+                                <button onclick="viewCertModal('{{ cert.cert_id }}')"
                                     class="btn btn-sm btn-outline-info" title="Verify Details">
                                     <i class="bi bi-eye"></i>
-                                </a>
+                                </button>
                             </div>
                         </td>
                     </tr>
@@ -112,6 +112,27 @@
 </div>
 {% endblock %}
 {% block extra_js %}
+<!-- Certificate Verify Modal -->
+<div class="modal fade" id="certModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content border border-secondary" style="background:#0f1521;">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title text-white"><span class="me-2">🎓</span>Certificate Verification</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="certModalBody"></div>
+      <div class="modal-footer border-secondary" id="certModalFooter" style="display:none">
+        <a id="certDlBtn" href="#" class="btn btn-warning fw-bold">
+          <i class="bi bi-download me-1"></i>Download Certificate
+        </a>
+        <a id="certVerifyBtn" href="#" target="_blank" class="btn btn-outline-light">
+          <i class="bi bi-shield-check me-1"></i>Open Verify Page
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
 <style>
     .copy-cert-btn {
         transition: opacity 0.2s, transform 0.15s;
@@ -150,5 +171,103 @@
             document.body.removeChild(el);
         });
     }
+</script>
+
+<script>
+async function viewCertModal(certId) {
+  const modal   = new bootstrap.Modal(document.getElementById('certModal'));
+  const body    = document.getElementById('certModalBody');
+  const footer  = document.getElementById('certModalFooter');
+  const dlBtn   = document.getElementById('certDlBtn');
+  const verBtn  = document.getElementById('certVerifyBtn');
+
+  body.innerHTML = `<div class="text-center py-4">
+    <div class="spinner-border text-info mb-3" role="status"></div>
+    <p class="text-muted">Verifying certificate...</p></div>`;
+  footer.style.display = 'none';
+  modal.show();
+
+  try {
+    const resp = await fetch('/verify/check', {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      credentials: 'same-origin',
+      body: JSON.stringify({cert_id: certId})
+    });
+    const data = await resp.json();
+
+    if (!data.valid) {
+      body.innerHTML = `<div class="text-center py-4">
+        <div class="fs-1 mb-3">❌</div>
+        <p class="text-danger fw-bold">Certificate could not be verified.</p>
+        <small class="text-muted">${data.error || ''}</small></div>`;
+      return;
+    }
+
+    body.innerHTML = `
+      <div class="rounded-3 p-3 mb-4 d-flex align-items-center gap-3"
+           style="background:linear-gradient(135deg,#1a4a2e,#1e5c38);border:1px solid #2d8a4e;">
+        <div class="rounded-circle d-flex align-items-center justify-content-center flex-shrink-0"
+             style="width:52px;height:52px;background:#2d8a4e;"><span style="font-size:1.6rem;">✅</span></div>
+        <div>
+          <div class="fw-bold text-white fs-5">Certificate Verified</div>
+          <div class="small" style="color:#86efac;">Authentic SkillVerse certificate.</div>
+        </div>
+        <span class="ms-auto fs-1">🎓</span>
+      </div>
+      <div class="row g-3">
+        <div class="col-6">
+          <div class="p-3 rounded-3" style="background:#1a1f2e;border:1px solid #2a2f45;">
+            <div class="text-uppercase small text-secondary mb-1" style="letter-spacing:.08em;">Certificate ID</div>
+            <div class="fw-semibold text-info"><i class="bi bi-shield-fill-check me-1"></i>${data.cert_id}</div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="p-3 rounded-3" style="background:#1a1f2e;border:1px solid #2a2f45;">
+            <div class="text-uppercase small text-secondary mb-1" style="letter-spacing:.08em;">Date Issued</div>
+            <div class="fw-semibold text-white">${data.issued_at}</div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="p-3 rounded-3" style="background:#1a1f2e;border:1px solid #2a2f45;">
+            <div class="text-uppercase small text-secondary mb-1" style="letter-spacing:.08em;">Awarded To</div>
+            <div class="fw-semibold text-white"><i class="bi bi-person-fill me-1 text-primary"></i>${data.student_name}</div>
+          </div>
+        </div>
+        <div class="col-6">
+          <div class="p-3 rounded-3" style="background:#1a1f2e;border:1px solid #2a2f45;">
+            <div class="text-uppercase small text-secondary mb-1" style="letter-spacing:.08em;">Instructor / Provider</div>
+            <div class="fw-semibold text-white"><i class="bi bi-journal-bookmark-fill me-1 text-warning"></i>${data.provider_name}</div>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="p-3 rounded-3" style="background:#1a1f2e;border:1px solid #2a2f45;">
+            <div class="text-uppercase small text-secondary mb-1" style="letter-spacing:.08em;">Skill / Course Completed</div>
+            <div class="fw-semibold text-warning"><i class="bi bi-trophy-fill me-1"></i>${data.skill_name}</div>
+          </div>
+        </div>
+        <div class="col-12">
+          <div class="p-3 rounded-3" style="background:#1a1f2e;border:1px solid #2a2f45;">
+            <div class="text-uppercase small text-secondary mb-1" style="letter-spacing:.08em;">Order Reference</div>
+            <div class="fw-semibold text-white">#${data.order_id}</div>
+          </div>
+        </div>
+      </div>
+      <div class="mt-3 text-center">
+        <span class="badge px-3 py-2" style="background:#1e3a5f;color:#60a5fa;border:1px solid #2563eb;">
+          <i class="bi bi-shield-check me-1"></i>Verified by Certificate ID
+        </span>
+      </div>`;
+
+    dlBtn.href  = `/user/certificate/${certId}/download`;
+    verBtn.href = `/verify?cert_id=${certId}`;
+    footer.style.display = '';
+  } catch(err) {
+    body.innerHTML = `<div class="text-center py-4">
+      <div class="fs-1 mb-3">⚠️</div>
+      <p class="text-warning">Something went wrong.</p>
+      <small class="text-muted">${err.message}</small></div>`;
+  }
+}
 </script>
 {% endblock %}
