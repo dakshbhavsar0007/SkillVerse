@@ -169,7 +169,7 @@
                 <p style="color: #1a1a4e; margin: 10px 0;">Certificate ID: <strong>{{ order.certificate.cert_id
                         }}</strong></p>
 
-                <a href="{{ url_for('user.download_certificate', cert_id=order.certificate.cert_id, _external=True) }}"
+                <a href="{{ base_url }}/user/certificate/{{ order.certificate.cert_id }}/download"
                     style="display: inline-block; background: linear-gradient(135deg, #FFD700 0%, #FDB931 100%); color: #1a1a4e; text-decoration: none; padding: 14px 28px; border-radius: 6px; font-weight: bold; margin: 16px 0;">
                     Download Your Certificate
                 </a>

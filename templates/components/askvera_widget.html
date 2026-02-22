@@ -6,7 +6,6 @@
 
     <!-- Mascot Trigger -->
     <button id="askvera-trigger" class="askvera-trigger" title="Chat with Vera">
-        <!-- Using a high quality 3D robot icon from Flaticon (CDN) -->
         <img src="https://cdn-icons-png.flaticon.com/512/4712/4712035.png" alt="Vera Robot" class="mascot-img">
     </button>
 
@@ -23,19 +22,19 @@
         <div id="askvera-messages" class="askvera-messages">
             <!-- Welcome Message -->
             <div class="message-wrapper ai">
-                <div class="message-avatar">
-                    <i class="bi bi-robot"></i>
-                </div>
+                <div class="message-avatar"><i class="bi bi-robot"></i></div>
                 <div class="message">
-                    Hi there! I'm Vera, your AI assistant. How can I help you today?
+                    Hi there! I'm Vera, your SkillVerse assistant. I can help you with orders, bookings, services, and anything on the platform. What would you like to know?
                 </div>
             </div>
+            <!-- Suggestion chips injected by JS after welcome -->
+            <div id="askvera-initial-chips"></div>
         </div>
 
         <div class="askvera-input-area">
             <div class="input-wrapper">
-                <input type="text" id="askvera-input" class="form-control shadow-none" placeholder="Type a message..."
-                    autocomplete="off">
+                <input type="text" id="askvera-input" class="form-control shadow-none"
+                    placeholder="Type a message..." autocomplete="off">
                 <button id="askvera-send" title="Send">
                     <i class="bi bi-send-fill" style="font-size: 14px;"></i>
                 </button>
@@ -43,3 +42,192 @@
         </div>
     </div>
 </div>
+
+<script>
+(function () {
+    // ── Config ────────────────────────────────────────────────────────────────
+    const API_URL   = "/chat/ask";          // Flask route for AskVera
+    const USER_ROLE = (typeof CURRENT_USER_ROLE !== "undefined") ? CURRENT_USER_ROLE : "guest";
+    const PAGE_NAME = (typeof CURRENT_PAGE  !== "undefined") ? CURRENT_PAGE  : window.location.pathname;
+
+    // ── DOM refs ──────────────────────────────────────────────────────────────
+    const trigger    = document.getElementById("askvera-trigger");
+    const closeBtn   = document.getElementById("askvera-close");
+    const window_    = document.getElementById("askvera-window");
+    const messages   = document.getElementById("askvera-messages");
+    const input      = document.getElementById("askvera-input");
+    const sendBtn    = document.getElementById("askvera-send");
+    const bubble     = document.querySelector(".askvera-bubble");
+    const initChips  = document.getElementById("askvera-initial-chips");
+
+    // ── Suggestion chips per role ─────────────────────────────────────────────
+    const SUGGESTIONS = {
+        admin: [
+            "How do I approve a service listing?",
+            "How do I manage users?",
+            "How do I reject a skill submission?",
+        ],
+        provider: [
+            "How do I create a service listing?",
+            "How do I accept or reject an order?",
+            "How do I set my availability slots?",
+        ],
+        customer: [
+            "How do I place an order?",
+            "How do I track my order?",
+            "How do I download my certificate?",
+        ],
+        guest: [
+            "How do I sign up?",
+            "How do I find a service?",
+            "How do I place an order?",
+        ],
+    };
+
+    // ── Render initial suggestion chips ──────────────────────────────────────
+    function renderInitialChips() {
+        const chips = SUGGESTIONS[USER_ROLE] || SUGGESTIONS.guest;
+        const wrapper = document.createElement("div");
+        wrapper.className = "askvera-suggestions";
+        chips.forEach(text => {
+            const chip = document.createElement("button");
+            chip.className = "suggestion-chip";
+            chip.textContent = text;
+            chip.addEventListener("click", () => {
+                wrapper.remove();           // remove chips after first use
+                sendMessage(text);
+            });
+            wrapper.appendChild(chip);
+        });
+        initChips.replaceWith(wrapper);
+    }
+
+    // ── Toggle open/close ─────────────────────────────────────────────────────
+    trigger.addEventListener("click", () => {
+        const isHidden = window_.classList.contains("hidden");
+        window_.classList.toggle("hidden");
+        bubble.style.display = isHidden ? "none" : "";
+        if (isHidden) input.focus();
+    });
+
+    closeBtn.addEventListener("click", () => {
+        window_.classList.add("hidden");
+        bubble.style.display = "";
+    });
+
+    // ── Send on Enter or button click ─────────────────────────────────────────
+    sendBtn.addEventListener("click", () => sendMessage());
+    input.addEventListener("keydown", e => { if (e.key === "Enter") sendMessage(); });
+
+    // ── Add a message bubble ──────────────────────────────────────────────────
+    function addMessage(text, role) {
+        const wrapper = document.createElement("div");
+        wrapper.className = `message-wrapper ${role}`;
+
+        const avatar = document.createElement("div");
+        avatar.className = "message-avatar";
+        avatar.innerHTML = role === "ai"
+            ? '<i class="bi bi-robot"></i>'
+            : '<i class="bi bi-person-fill"></i>';
+
+        const msg = document.createElement("div");
+        msg.className = "message";
+        msg.textContent = text;
+
+        wrapper.appendChild(avatar);
+        wrapper.appendChild(msg);
+        messages.appendChild(wrapper);
+        messages.scrollTop = messages.scrollHeight;
+        return wrapper;
+    }
+
+    // ── Typing indicator ──────────────────────────────────────────────────────
+    function showTyping() {
+        const wrapper = document.createElement("div");
+        wrapper.className = "message-wrapper ai";
+        wrapper.id = "askvera-typing";
+
+        const avatar = document.createElement("div");
+        avatar.className = "message-avatar";
+        avatar.innerHTML = '<i class="bi bi-robot"></i>';
+
+        const msg = document.createElement("div");
+        msg.className = "message";
+        msg.innerHTML = '<div class="typing-dots"><span></span><span></span><span></span></div>';
+
+        wrapper.appendChild(avatar);
+        wrapper.appendChild(msg);
+        messages.appendChild(wrapper);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    function hideTyping() {
+        const t = document.getElementById("askvera-typing");
+        if (t) t.remove();
+    }
+
+    // ── Render follow-up suggestion chips after AI reply ─────────────────────
+    function renderFollowUpChips(chips) {
+        if (!chips || !chips.length) return;
+        const wrapper = document.createElement("div");
+        wrapper.className = "askvera-suggestions";
+        chips.slice(0, 3).forEach(text => {
+            const chip = document.createElement("button");
+            chip.className = "suggestion-chip";
+            chip.textContent = text;
+            chip.addEventListener("click", () => {
+                wrapper.remove();
+                sendMessage(text);
+            });
+            wrapper.appendChild(chip);
+        });
+        messages.appendChild(wrapper);
+        messages.scrollTop = messages.scrollHeight;
+    }
+
+    // ── Core send function ────────────────────────────────────────────────────
+    async function sendMessage(overrideText) {
+        const text = (overrideText || input.value).trim();
+        if (!text) return;
+
+        input.value = "";
+        sendBtn.disabled = true;
+        addMessage(text, "user");
+        showTyping();
+
+        try {
+            const res = await fetch(API_URL, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    message: text,
+                    context: { page: PAGE_NAME },
+                    user_role: USER_ROLE,
+                }),
+            });
+
+            const data = await res.json();
+            hideTyping();
+
+            if (data.error && data.fallback) {
+                addMessage("Sorry, I'm having trouble connecting right now. Please try again in a moment.", "ai");
+            } else if (data.response) {
+                addMessage(data.response, "ai");
+                renderFollowUpChips(data.suggestions);
+            } else {
+                addMessage("I didn't quite get that. Could you rephrase your question?", "ai");
+            }
+        } catch (err) {
+            hideTyping();
+            addMessage("Connection error. Please check your internet and try again.", "ai");
+            console.error("AskVera error:", err);
+        } finally {
+            sendBtn.disabled = false;
+            input.focus();
+        }
+    }
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    renderInitialChips();
+})();
+</script>

@@ -5,10 +5,20 @@ Sends transactional emails via SendGrid HTTP API (port 443, always open on Rende
 
 Anti-spam measures implemented:
 - Named sender: "SkillVerse Team <noreply@...>" instead of bare address
+- Reply-To set to a monitored address so replies don't bounce
 - Plain-text alternative for every email (HTML-only emails score badly with filters)
-- List-Unsubscribe header so Gmail/Outlook don't flag bulk-style messages
+- List-Unsubscribe header ONLY on marketing/notification emails (not on transactional)
+  (Adding it to password resets / order confirmations is a spam signal)
 - Descriptive subject lines (no ALL CAPS, no spam trigger words)
 - All links use the production Render URL, not localhost
+- Improved plain-text stripping: preserves line breaks and collapses whitespace cleanly
+
+Checklist for good deliverability (things you must do outside this code):
+1. SPF  — add a TXT record: v=spf1 include:sendgrid.net ~all
+2. DKIM — enable & verify your domain in SendGrid dashboard
+3. DMARC — add: v=DMARC1; p=none; rua=mailto:dmarc@yourdomain.com
+4. Verify your sender domain in SendGrid (not just the email address)
+5. Keep spam complaint rate below 0.1% (monitor in SendGrid dashboard)
 """
 
 import os
@@ -16,16 +26,31 @@ import re
 from threading import Thread
 
 import sendgrid
-from sendgrid.helpers.mail import Mail, Content, MimeType
+from sendgrid.helpers.mail import Mail, Content, MimeType, ReplyTo
 from flask import render_template, current_app
 
 # ── Production base URL (used for all external links in emails) ───────────────
 APP_BASE_URL = "https://skillverse-oh9z.onrender.com"
 
+# ── Email types: only these get a List-Unsubscribe header ────────────────────
+# Transactional emails (order confirmations, password resets, booking alerts)
+# must NOT have List-Unsubscribe — it confuses spam filters.
+# Only add it to digest / newsletter style emails.
+MARKETING_TEMPLATES = {"welcome"}  # extend if you add newsletters
+
 
 def _base_url():
     """Return the production base URL, falling back to env var if set."""
     return os.environ.get("APP_BASE_URL", APP_BASE_URL).rstrip("/")
+
+
+def _get_reply_to():
+    """
+    Return a monitored Reply-To address.
+    noreply senders with no Reply-To are a spam signal because ISPs can't
+    verify there's a human behind the domain.  Point to a real inbox.
+    """
+    return os.environ.get("MAIL_REPLY_TO", "support@skillverse.com")
 
 
 def _get_sg_client():
@@ -52,20 +77,37 @@ def _get_named_sender():
 
 
 def _html_to_text(html: str) -> str:
-    """Very simple HTML → plain-text strip for the text/plain alternative."""
-    text = re.sub(r"<[^>]+>", " ", html)
-    text = re.sub(r"&amp;",  "&",  text)
-    text = re.sub(r"&lt;",   "<",  text)
-    text = re.sub(r"&gt;",   ">",  text)
-    text = re.sub(r"&nbsp;", " ",  text)
-    text = re.sub(r"\s{2,}", " ",  text)
+    """
+    HTML → plain-text for the text/plain alternative.
+
+    A well-formed plain-text part is critical: spam filters penalise emails
+    where the HTML and plain-text say wildly different things, and they also
+    penalise plain-text parts that are just a wall of whitespace.
+    """
+    # Block-level tags → newlines so paragraphs survive the strip
+    text = re.sub(r"<(?:br\s*/?|/p|/div|/tr|/li|/h[1-6])>", "\n", html, flags=re.I)
+    # Remove all remaining tags
+    text = re.sub(r"<[^>]+>", "", text)
+    # Decode common HTML entities
+    text = re.sub(r"&amp;",   "&",  text)
+    text = re.sub(r"&lt;",    "<",  text)
+    text = re.sub(r"&gt;",    ">",  text)
+    text = re.sub(r"&nbsp;",  " ",  text)
+    text = re.sub(r"&#39;",   "'",  text)
+    text = re.sub(r"&quot;",  '"',  text)
+    # Collapse runs of spaces/tabs (but keep newlines)
+    text = re.sub(r"[^\S\n]+", " ", text)
+    # Collapse more than two consecutive newlines
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    # Strip leading/trailing whitespace from each line
+    text = "\n".join(line.strip() for line in text.splitlines())
     return text.strip()
 
 
-def send_async_email(app, subject, recipient, html_content, sender):
+def send_async_email(app, subject, recipient, html_content, sender, template_name=""):
     """
     Send email in a background thread via SendGrid HTTP API.
-    Includes plain-text alternative and anti-spam headers.
+    Includes plain-text alternative, Reply-To, and conditional anti-spam headers.
     """
     with app.app_context():
         try:
@@ -79,28 +121,36 @@ def send_async_email(app, subject, recipient, html_content, sender):
             message.to = recipient
             message.subject = subject
 
+            # Reply-To: a monitored inbox — improves sender reputation
+            message.reply_to = ReplyTo(_get_reply_to(), "SkillVerse Support")
+
             # text/plain first (recommended order for deliverability)
             message.content = [
                 Content(MimeType.text, plain_text),
                 Content(MimeType.html, html_content),
             ]
 
-            # Anti-spam: List-Unsubscribe header
-            unsubscribe_url = f"{_base_url()}/unsubscribe?email={recipient}"
-            message.header = [
-                sendgrid.helpers.mail.Header(
-                    "List-Unsubscribe",
-                    f"<{unsubscribe_url}>"
-                ),
-                sendgrid.helpers.mail.Header(
-                    "List-Unsubscribe-Post",
-                    "List-Unsubscribe=One-Click"
-                ),
-                sendgrid.helpers.mail.Header(
-                    "X-Mailer",
-                    "SkillVerse Mailer 1.0"
-                ),
+            headers = [
+                sendgrid.helpers.mail.Header("X-Mailer", "SkillVerse Mailer 1.0"),
             ]
+
+            # List-Unsubscribe ONLY for marketing/welcome emails.
+            # Adding it to transactional emails (order confirmations, password
+            # resets) confuses ISPs and increases spam scores.
+            if template_name in MARKETING_TEMPLATES:
+                unsubscribe_url = f"{_base_url()}/unsubscribe?email={recipient}"
+                headers += [
+                    sendgrid.helpers.mail.Header(
+                        "List-Unsubscribe",
+                        f"<{unsubscribe_url}>"
+                    ),
+                    sendgrid.helpers.mail.Header(
+                        "List-Unsubscribe-Post",
+                        "List-Unsubscribe=One-Click"
+                    ),
+                ]
+
+            message.header = headers
 
             response = sg.send(message)
             if response.status_code not in (200, 202):
@@ -138,7 +188,7 @@ def send_email(subject, recipient, template, **kwargs):
 
         Thread(
             target=send_async_email,
-            args=(app, subject, recipient, html_content, sender),
+            args=(app, subject, recipient, html_content, sender, template),
             daemon=True,
         ).start()
 
@@ -286,4 +336,20 @@ def send_password_reset_email(user, token):
         template="reset_password",
         user=user,
         link=link,
+    )
+
+
+def send_skill_rejected_email(provider, service_title, reason, service_id):
+    """Notify a provider that their skill submission was rejected."""
+    base = _base_url()
+    resubmit_link = f"{base}/service/edit/{service_id}"
+
+    return send_email(
+        subject="Your skill submission needs a revision",
+        recipient=provider.email,
+        template="skill_rejected",
+        provider=provider,
+        service_title=service_title,
+        reason=reason,
+        resubmit_link=resubmit_link,
     )
